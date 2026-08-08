@@ -369,6 +369,47 @@ function fmtChf(v){
   return String(v);
 }
 
+// "1330" -> "13:30", "730" -> "07:30"
+function formatZeit(v){
+  if(v===null||v===undefined||v==='') return null;
+  const digits = String(v).trim().replace(/[^\d]/g,'');
+  if(!digits) return String(v);
+  const padded = digits.padStart(4,'0');
+  return padded.slice(0,2) + ':' + padded.slice(2,4);
+}
+
+// "30.07.2026" -> "30.07"
+function formatDatumKurz(v){
+  if(!v) return null;
+  const parts = String(v).split('.');
+  if(parts.length < 2) return v;
+  return parts[0] + '.' + parts[1];
+}
+
+function formatDatumJahr(v){
+  if(!v) return null;
+  const parts = String(v).split('.');
+  return parts.length === 3 ? parts[2] : null;
+}
+
+// "30.07.2026" -> Date-Objekt (Mitternacht)
+function parseDatum(v){
+  if(!v) return null;
+  const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if(!m) return null;
+  return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+}
+
+// Datum + Zeit zusammen hübsch formatiert: "30.07, 13:30 Uhr"
+function combinedDatumZeit(datum, zeit){
+  const d = formatDatumKurz(datum);
+  const z = formatZeit(zeit);
+  if(d && z) return `${d}, ${z} Uhr`;
+  if(d) return d;
+  if(z) return z + ' Uhr';
+  return null;
+}
+
 function contactRows(c){
   const nameLine = [c.titel, c.vorname, c.name].filter(Boolean).join(' ') || c.name || null;
   return [
@@ -425,9 +466,12 @@ function contactTabBody(tabKey, c){
 
 function renderDetail(k){
   const a = k.anlage || {};
-  const nextService = a.naechsterService;
-  const chip = nextService
-    ? `<span class="chip warn"><span class="dot"></span>Nächster Service: ${escapeHtml(nextService)}</span>`
+  const naechsterTermin = (k.termine||[])
+    .map(t => ({...t, _d: parseDatum(t.datum)}))
+    .filter(t => t._d && t._d.getTime() >= new Date(new Date().setHours(0,0,0,0)).getTime())
+    .sort((a,b) => a._d - b._d)[0];
+  const chip = naechsterTermin
+    ? `<span class="chip warn"><span class="dot"></span>Nächster Service: ${escapeHtml(combinedDatumZeit(naechsterTermin.datum, naechsterTermin.zeit))}</span>`
     : `<span class="chip ok"><span class="dot"></span>Kein Termin geplant</span>`;
 
   const backBtn = `<button class="back-btn" onclick="document.getElementById('results-panel').classList.remove('hidden-mobile')">&larr; Zur Suche</button>`;
@@ -468,23 +512,25 @@ function renderDetail(k){
   `;
 
   const pl = k.planung || {};
+  const service1 = combinedDatumZeit(pl.datS, pl.zeitS);
+  const service2 = combinedDatumZeit(pl.dat226, pl.zeit226);
+  const service1Label = '1. Service' + (formatDatumJahr(pl.datS) ? ' ' + formatDatumJahr(pl.datS) : '');
+  const service2Label = '2. Service' + (formatDatumJahr(pl.dat226) ? ' ' + formatDatumJahr(pl.dat226) : '');
   const planungCard = `
     <div class="card">
       <h3>Planung / Tour</h3>
       ${kv('Kontrolle Planung', pl.kontrollePlanung)}
       ${kv('Tag', pl.tag)}
-      ${kv('1. Service — Datum', pl.datS)}
-      ${kv('1. Service — Zeit', pl.zeitS)}
-      ${kv('2. Service — Datum', pl.dat226)}
-      ${kv('2. Service — Zeit', pl.zeit226)}
+      ${kv(service1Label, service1)}
+      ${kv(service2Label, service2)}
       ${kv('Zuständiger Kanton', pl.zustKt)}
     </div>
   `;
 
   const kontakte = k.kontakte || {};
   const kontaktTabs = [
-    ['eigentuemer', 'Eigentümer'],
     ['betreiber', 'Betreiber'],
+    ['eigentuemer', 'Eigentümer'],
     ['rechnung', 'Rechnung'],
     ['avisierung', 'Avisierung'],
   ];
@@ -493,7 +539,7 @@ function renderDetail(k){
       <div class="tabs" id="kontakt-tabs">
         ${kontaktTabs.map(([key,label], i) => `<button class="tab-btn${i===0?' active':''}" data-tab="${key}">${label}</button>`).join('')}
       </div>
-      <div id="kontakt-tab-body">${contactTabBody('eigentuemer', kontakte.eigentuemer)}</div>
+      <div id="kontakt-tab-body">${contactTabBody('betreiber', kontakte.betreiber)}</div>
     </div>
   `;
 
@@ -502,7 +548,7 @@ function renderDetail(k){
     <div class="card">
       <h3>Service-Termine</h3>
       ${termine.length ? `<ul class="timeline">
-        ${termine.map(t => `<li><span class="tdot"></span><span class="tlabel">${t.halbjahr}. Halbjahr ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(t.zeit)+' Uhr'):''}</span></li>`).join('')}
+        ${termine.map(t => `<li><span class="tdot"></span><span class="tlabel">${t.halbjahr}. Service ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span></li>`).join('')}
       </ul>` : '<div class="kv"><span class="k">Keine Termine erfasst</span></div>'}
     </div>
   `;
