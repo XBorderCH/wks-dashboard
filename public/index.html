@@ -398,6 +398,19 @@ function telHref(v){
   if(!digits) return null;
   return 'tel:' + digits;
 }
+
+function mailtoHref(v){
+  if(!v) return null;
+  const email = String(v).trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
+  return 'mailto:' + email;
+}
+
+// Freitext-Adresse -> Google-Maps-Suchlink
+function adresseLink(v){
+  if(!v) return null;
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v);
+}
 function formatZeit(v){
   if(v===null||v===undefined||v==='') return null;
   const digits = String(v).trim().replace(/[^\d]/g,'');
@@ -490,6 +503,12 @@ function contactTabBody(tabKey, c){
         if((k === 'Natel' || k === 'Telefon') && telHref(v)){
           return `<div class="kv"><span class="k">${k}</span><a class="v link" href="${telHref(v)}">${escapeHtml(v)}</a></div>`;
         }
+        if(k === 'E-Mail' && mailtoHref(v)){
+          return `<div class="kv"><span class="k">${k}</span><a class="v link" href="${mailtoHref(v)}">${escapeHtml(v)}</a></div>`;
+        }
+        if(k === 'Adresse' && adresseLink(v)){
+          return `<div class="kv"><span class="k">${k}</span><a class="v link" href="${adresseLink(v)}" target="_blank" rel="noopener">${escapeHtml(v)}</a></div>`;
+        }
         return `<div class="kv"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`;
       }).join('')
     : '<div class="kv"><span class="k">Keine Kontaktdaten</span></div>';
@@ -524,7 +543,7 @@ function renderDetail(k){
   const anlageCard = `
     <div class="card">
       <h3>Anlage &amp; Adresse</h3>
-      ${kv('Adresse', a.adresse)}
+      ${kvLink('Adresse', a.adresse, adresseLink([a.adresse, a.plz, a.ort].filter(Boolean).join(', ')))}
       ${kv('PLZ / Ort', [a.plz, a.ort].filter(Boolean).join(' '))}
       ${kvLink('Koordinaten', a.koordinaten, koordinatenLink(a.koordinaten), true)}
       ${kv('Region', a.region)}
