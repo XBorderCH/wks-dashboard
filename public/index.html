@@ -554,12 +554,31 @@ function renderDetail(k){
     </div>
   `;
 
-  const termine = (k.termine||[]).filter(t => t.datum || t.zeit).slice().reverse();
+  // Wenn 1. und 2. Service im selben Jahr auf Datum+Zeit identisch sind, zu einer Zeile zusammenfassen
+  const termineRaw = (k.termine||[]).filter(t => t.datum || t.zeit);
+  const termineByJahr = {};
+  termineRaw.forEach(t => {
+    termineByJahr[t.jahr] = termineByJahr[t.jahr] || [];
+    termineByJahr[t.jahr].push(t);
+  });
+  const termine = [];
+  Object.keys(termineByJahr).forEach(jahr => {
+    const entries = termineByJahr[jahr];
+    const e1 = entries.find(t => t.halbjahr === '1');
+    const e2 = entries.find(t => t.halbjahr === '2');
+    if(e1 && e2 && e1.datum === e2.datum && e1.zeit === e2.zeit){
+      termine.push({ jahr, halbjahr: null, datum: e1.datum, zeit: e1.zeit });
+    } else {
+      entries.forEach(t => termine.push(t));
+    }
+  });
+  termine.sort((a,b) => (a.jahr + (a.halbjahr||'0')).localeCompare(b.jahr + (b.halbjahr||'0')));
+  termine.reverse();
   const termineCard = `
     <div class="card">
       <h3>Service-Termine</h3>
       ${termine.length ? `<ul class="timeline">
-        ${termine.map(t => `<li><span class="tdot"></span><span class="tlabel">${t.halbjahr}. Service ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span></li>`).join('')}
+        ${termine.map(t => `<li><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span></li>`).join('')}
       </ul>` : '<div class="kv"><span class="k">Keine Termine erfasst</span></div>'}
     </div>
   `;
