@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kundendatenbank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F8F7;
+    --surface:#FFFFFF;
+    --ink:#16211E;
+    --ink-soft:#5B6D67;
+    --line:#DDE5E1;
+    --accent:#0E6E5D;
+    --accent-soft:#E3EFEB;
+    --accent-ink:#08453A;
+    --amber:#B4700C;
+    --amber-soft:#FBF0DD;
+    --red:#B23B2E;
+    --red-soft:#FBEAE7;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  ::selection{background:var(--accent-soft);}
+
+  /* ---- Login ---- */
+  #login-screen{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .login-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:40px 36px;
+    width:100%;
+    max-width:360px;
+    box-shadow:0 1px 2px rgba(20,30,26,0.04);
+  }
+  .login-card .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:28px;
+  }
+  .brand-mark{
+    width:34px;height:34px;
+    border-radius:8px;
+    background:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;
+    flex:none;
+  }
+  .brand-text{font-weight:600;font-size:16px;letter-spacing:-0.01em;}
+  .login-card label{
+    display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:500;
+    text-transform:uppercase;letter-spacing:0.04em;
+  }
+  .login-card input{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:8px;
+    font-size:15px;font-family:inherit;background:#FCFDFC;
+  }
+  .login-card input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  .login-card button{
+    margin-top:16px;width:100%;padding:11px;border:none;border-radius:8px;
+    background:var(--accent);color:#fff;font-weight:600;font-size:14.5px;cursor:pointer;
+    font-family:inherit;
+  }
+  .login-card button:hover{background:var(--accent-ink);}
+  .login-error{color:var(--red);font-size:13px;margin-top:10px;min-height:16px;}
+
+  /* ---- App shell ---- */
+  #app{display:none;min-height:100vh;flex-direction:column;}
+  header.topbar{
+    background:var(--surface);
+    border-bottom:1px solid var(--line);
+    padding:14px 22px;
+    display:flex;align-items:center;gap:16px;
+    position:sticky;top:0;z-index:10;
+  }
+  header.topbar .brand{display:flex;align-items:center;gap:10px;flex:none;}
+  .search-wrap{flex:1;position:relative;max-width:560px;}
+  .search-wrap input{
+    width:100%;padding:10px 14px 10px 38px;border:1px solid var(--line);border-radius:8px;
+    font-size:14.5px;font-family:inherit;background:var(--bg);
+  }
+  .search-wrap input:focus{outline:2px solid var(--accent);outline-offset:1px;background:#fff;}
+  .search-wrap .icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:15px;}
+  .meta-count{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .logout-btn{
+    margin-left:auto;background:none;border:1px solid var(--line);border-radius:7px;
+    padding:7px 12px;font-size:13px;color:var(--ink-soft);cursor:pointer;font-family:inherit;
+  }
+  .logout-btn:hover{background:var(--bg);}
+
+  main{flex:1;display:flex;overflow:hidden;}
+
+  /* ---- Results panel ---- */
+  #results-panel{
+    width:340px;flex:none;border-right:1px solid var(--line);
+    overflow-y:auto;background:var(--surface);
+  }
+  .hint{padding:26px 20px;color:var(--ink-soft);font-size:13.5px;line-height:1.6;}
+  .result-item{
+    padding:13px 20px;border-bottom:1px solid var(--line);cursor:pointer;
+  }
+  .result-item:hover{background:var(--accent-soft);}
+  .result-item.active{background:var(--accent-soft);border-left:3px solid var(--accent);padding-left:17px;}
+  .result-kdnr{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--accent-ink);font-weight:600;}
+  .result-name{font-size:14.5px;font-weight:500;margin-top:2px;}
+  .result-ort{font-size:12.5px;color:var(--ink-soft);margin-top:1px;}
+
+  /* ---- Detail panel ---- */
+  #detail-panel{flex:1;overflow-y:auto;padding:28px 34px 60px;}
+  .empty-state{
+    height:100%;display:flex;align-items:center;justify-content:center;
+    color:var(--ink-soft);font-size:14.5px;text-align:center;flex-direction:column;gap:8px;
+  }
+  .empty-state .big{font-size:32px;}
+
+  .detail-header{
+    display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;
+    margin-bottom:22px;
+  }
+  .kdnr-badge{
+    display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;
+    background:var(--accent-ink);color:#fff;padding:3px 8px;border-radius:5px;letter-spacing:0.02em;
+  }
+  .detail-title{font-size:22px;font-weight:600;letter-spacing:-0.01em;margin:8px 0 4px;}
+  .detail-sub{color:var(--ink-soft);font-size:14px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;
+    font-size:12.5px;font-weight:600;
+  }
+  .chip.ok{background:var(--accent-soft);color:var(--accent-ink);}
+  .chip.warn{background:var(--amber-soft);color:var(--amber);}
+  .chip .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fit, minmax(300px,1fr));gap:16px;margin-bottom:16px;
+  }
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .card h3{
+    margin:0 0 14px;font-size:12px;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--ink-soft);font-weight:600;
+  }
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:13.5px;border-bottom:1px solid #F0F3F1;}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--ink-soft);flex:none;}
+  .kv .v{text-align:right;font-weight:500;}
+  .kv .v.mono{font-family:'IBM Plex Mono',monospace;font-weight:500;}
+
+  .tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;}
+  .tab-btn{
+    background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 12px;
+    font-size:12.5px;font-weight:500;cursor:pointer;color:var(--ink-soft);font-family:inherit;
+  }
+  .tab-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  .timeline{list-style:none;margin:0;padding:0;}
+  .timeline li{
+    display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #F0F3F1;font-size:13.5px;
+  }
+  .timeline li:last-child{border-bottom:none;}
+  .timeline .tdot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;}
+  .timeline .tlabel{color:var(--ink-soft);flex:1;}
+  .timeline .tval{font-family:'IBM Plex Mono',monospace;font-weight:500;}
+
+  table.fee-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.fee-table th{
+    text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;
+    color:var(--ink-soft);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);
+  }
+  table.fee-table td{padding:8px 8px;border-bottom:1px solid #F0F3F1;}
+  table.fee-table td.mono{font-family:'IBM Plex Mono',monospace;}
+
+  .remark{padding:9px 0;border-bottom:1px solid #F0F3F1;font-size:13.5px;line-height:1.5;}
+  .remark:last-child{border-bottom:none;}
+  .remark .rlabel{font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-soft);margin-bottom:3px;font-weight:600;}
+
+  details.raw{margin-top:6px;}
+  details.raw summary{
+    cursor:pointer;font-size:12.5px;color:var(--ink-soft);padding:8px 0;user-select:none;
+  }
+  .raw-grid{
+    display:grid;grid-template-columns:repeat(auto-fill, minmax(220px,1fr));gap:1px;
+    background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:8px;
+  }
+  .raw-cell{background:var(--surface);padding:8px 10px;font-size:12px;}
+  .raw-cell .rk{color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:10.5px;display:block;margin-bottom:2px;}
+  .raw-cell .rv{word-break:break-word;}
+
+  @media (max-width: 760px){
+    #results-panel{width:100%;position:absolute;inset:0;z-index:5;}
+    #results-panel.hidden-mobile{display:none;}
+    #detail-panel{padding:20px 16px 60px;}
+    main{position:relative;}
+    .back-btn{display:inline-flex;margin-bottom:14px;background:none;border:1px solid var(--line);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer;color:var(--ink-soft);font-family:inherit;}
+  }
+  .back-btn{display:none;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-mark">KD</div>
+      <div class="brand-text">Kundendatenbank</div>
+    </div>
+    <form id="login-form">
+      <label for="pw">Passwort</label>
+      <input type="password" id="pw" autocomplete="current-password" autofocus />
+      <button type="submit">Anmelden</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">KD</div>
+    </div>
+    <div class="search-wrap">
+      <span class="icon">&#9906;</span>
+      <input type="text" id="search-input" placeholder="Kundennummer oder Nachname suchen..." autocomplete="off" />
+    </div>
+    <div class="meta-count" id="meta-count"></div>
+    <button class="logout-btn" id="logout-btn">Abmelden</button>
+  </header>
+  <main>
+    <div id="results-panel">
+      <div class="hint" id="results-hint">Tippen, um nach Kundennummer oder Nachname zu suchen.</div>
+      <div id="results-list"></div>
+    </div>
+    <div id="detail-panel">
+      <div class="empty-state">
+        <div class="big">&#9906;</div>
+        <div>Kein Kunde ausgewählt</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+
+async function checkSession(){
+  const r = await fetch('/api/session');
+  const d = await r.json();
+  if(d.authed){
+    showApp();
+  }
+}
+
+function showApp(){
+  $('#login-screen').style.display = 'none';
+  $('#app').style.display = 'flex';
+  loadMeta();
+  $('#search-input').focus();
+}
+
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const password = $('#pw').value;
+  $('#login-error').textContent = '';
+  try{
+    const r = await fetch('/api/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({password})
+    });
+    const d = await r.json();
+    if(d.ok){ showApp(); }
+    else { $('#login-error').textContent = 'Falsches Passwort.'; }
+  }catch(err){
+    $('#login-error').textContent = 'Verbindungsfehler.';
+  }
+});
+
+$('#logout-btn').addEventListener('click', async () => {
+  await fetch('/api/logout', {method:'POST'});
+  location.reload();
+});
+
+async function loadMeta(){
+  const r = await fetch('/api/meta');
+  if(!r.ok) return;
+  const d = await r.json();
+  $('#meta-count').textContent = d.anzahl + ' Kunden';
+}
+
+let searchTimer = null;
+$('#search-input').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  searchTimer = setTimeout(() => runSearch(q), 150);
+});
+
+let activeKdnr = null;
+
+async function runSearch(q){
+  const listEl = $('#results-list');
+  const hintEl = $('#results-hint');
+  if(!q){
+    listEl.innerHTML = '';
+    hintEl.style.display = 'block';
+    hintEl.textContent = 'Tippen, um nach Kundennummer oder Nachname zu suchen.';
+    return;
+  }
+  const r = await fetch('/api/kunden?q=' + encodeURIComponent(q));
+  const results = await r.json();
+  hintEl.style.display = results.length ? 'none' : 'block';
+  if(!results.length){
+    hintEl.textContent = 'Keine Treffer für "' + q + '".';
+  }
+  listEl.innerHTML = results.map(k => `
+    <div class="result-item ${k.kdnr===activeKdnr?'active':''}" data-kdnr="${k.kdnr}">
+      <div class="result-kdnr">#${escapeHtml(k.kdnr||'-')}</div>
+      <div class="result-name">${escapeHtml(k.kdnrName || '(ohne Name)')}</div>
+      <div class="result-ort">${escapeHtml([k.anlagentyp,k.ort].filter(Boolean).join(' · '))}</div>
+    </div>
+  `).join('');
+  listEl.querySelectorAll('.result-item').forEach(el => {
+    el.addEventListener('click', () => openKunde(el.dataset.kdnr));
+  });
+}
+
+function escapeHtml(s){
+  if(s===null||s===undefined) return '';
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+async function openKunde(kdnr){
+  activeKdnr = kdnr;
+  document.querySelectorAll('.result-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.kdnr === kdnr);
+  });
+  if(window.innerWidth <= 760){
+    $('#results-panel').classList.add('hidden-mobile');
+  }
+  const r = await fetch('/api/kunden/' + encodeURIComponent(kdnr));
+  if(!r.ok){ return; }
+  const k = await r.json();
+  renderDetail(k);
+}
+
+function fmtChf(v){
+  if(v===null||v===undefined||v==='') return null;
+  const n = String(v).replace(',', '.');
+  if(/^-?\d+(\.\d+)?$/.test(n)) return 'CHF ' + Number(n).toFixed(2);
+  return String(v);
+}
+
+function contactRows(c){
+  const nameLine = [c.titel, c.vorname, c.name].filter(Boolean).join(' ') || c.name || null;
+  return [
+    ['Name', nameLine],
+    ['Abteilung', c.abteilung],
+    ['Adresse', [c.strasse, [c.plz, c.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null],
+    ['Natel', c.natel],
+    ['Telefon', c.tel],
+    ['E-Mail', c.mail],
+  ].filter(([,v]) => v);
+}
+
+function contactTabBody(tabKey, c){
+  if(!c) return '<div class="kv"><span class="k">Keine Angaben</span></div>';
+  let rows = contactRows(c);
+  let extraHtml = '';
+
+  if(tabKey === 'rechnung'){
+    const rechnungen = c.rechnungen || [];
+    if(rechnungen.length){
+      extraHtml += `
+        <table class="fee-table" style="margin-top:10px;">
+          <thead><tr><th>Jahr</th><th>Rechnungs-Nr.</th><th>Betrag</th></tr></thead>
+          <tbody>
+            ${rechnungen.map(g => `<tr><td>${escapeHtml(g.jahr)}</td><td class="mono">${escapeHtml(g.rechnungsNr||'—')}</td><td class="mono">${escapeHtml(fmtChf(g.betrag)||'—')}</td></tr>`).join('')}
+          </tbody>
+        </table>`;
+    }
+    const feeBits = [
+      c.aktuelleGebuehr ? `<div class="kv"><span class="k">Wartungsgebühr (aktuell)</span><span class="v mono">${escapeHtml(fmtChf(c.aktuelleGebuehr))}</span></div>` : '',
+      c.wartOffen ? `<div class="kv"><span class="k">Wartung offen</span><span class="v">${escapeHtml(c.wartOffen)}</span></div>` : '',
+    ].join('');
+    if(feeBits) extraHtml += `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">${feeBits}</div>`;
+  }
+
+  if(tabKey === 'avisierung'){
+    const bits = [
+      ['Avisierung Papier', c.avisPapier],
+      ['Avisierung Mail', c.avisMail],
+      ['Zeitfenster Avis', c.zeitAvis],
+      ['Avis nächster Service', c.avisNaechsterService],
+    ].filter(([,v]) => v);
+    if(bits.length){
+      extraHtml += `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">${bits.map(([k,v]) => `<div class="kv"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')}</div>`;
+    }
+  }
+
+  const rowsHtml = rows.length
+    ? rows.map(([k,v]) => `<div class="kv"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')
+    : '<div class="kv"><span class="k">Keine Kontaktdaten</span></div>';
+
+  return rowsHtml + extraHtml;
+}
+
+function renderDetail(k){
+  const a = k.anlage || {};
+  const nextService = a.naechsterService;
+  const chip = nextService
+    ? `<span class="chip warn"><span class="dot"></span>Nächster Service: ${escapeHtml(nextService)}</span>`
+    : `<span class="chip ok"><span class="dot"></span>Kein Termin geplant</span>`;
+
+  const backBtn = `<button class="back-btn" onclick="document.getElementById('results-panel').classList.remove('hidden-mobile')">&larr; Zur Suche</button>`;
+
+  const header = `
+    ${backBtn}
+    <div class="detail-header">
+      <div>
+        <span class="kdnr-badge mono">#${escapeHtml(k.kdnr||'—')}</span>
+        <div class="detail-title">${escapeHtml(k.kdnrName || '(ohne Name)')}</div>
+        <div class="detail-sub">${escapeHtml([a.anlagentyp, [a.adresse, [a.plz, a.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(' · '))}</div>
+      </div>
+      ${chip}
+    </div>
+  `;
+
+  const anlageCard = `
+    <div class="card">
+      <h3>Anlage &amp; Adresse</h3>
+      ${kv('Adresse', a.adresse)}
+      ${kv('PLZ / Ort', [a.plz, a.ort].filter(Boolean).join(' '))}
+      ${kv('Koordinaten', a.koordinaten, true)}
+      ${kv('Region', a.region)}
+      ${kv('Anlagenlieferant', a.anlagenlieferant)}
+      ${kv('Anlagentyp', a.anlagentyp)}
+      ${kv('Grösse Anlage', a.groesse)}
+      ${kv('EWS / EWP', [a.ews,a.ewp].filter(Boolean).join(' / '))}
+      ${kv('Anzahl Service/Jahr', a.anzahlService)}
+      ${kv('Kompressor-Typ', a.komprTyp)}
+      ${kv('GWA-Nr.', a.gwaNr)}
+      ${kv('Inbetriebnahme (IBS)', a.ibs)}
+      ${kv('Vertrag ab', a.vertragAb)}
+      ${kv('Letzter Service', a.letzterService)}
+      ${kv('Nächster Service', a.naechsterService)}
+      ${kv('Dauer (Min)', a.dauer)}
+      ${kv('Filtersack', a.filtersack)}
+    </div>
+  `;
+
+  const pl = k.planung || {};
+  const planungCard = `
+    <div class="card">
+      <h3>Planung / Tour</h3>
+      ${kv('Kontrolle Planung', pl.kontrollePlanung)}
+      ${kv('Tag', pl.tag)}
+      ${kv('1. Service — Datum', pl.datS)}
+      ${kv('1. Service — Zeit', pl.zeitS)}
+      ${kv('2. Service — Datum', pl.dat226)}
+      ${kv('2. Service — Zeit', pl.zeit226)}
+      ${kv('Zuständiger Kanton', pl.zustKt)}
+    </div>
+  `;
+
+  const kontakte = k.kontakte || {};
+  const kontaktTabs = [
+    ['eigentuemer', 'Eigentümer'],
+    ['betreiber', 'Betreiber'],
+    ['rechnung', 'Rechnung'],
+    ['avisierung', 'Avisierung'],
+  ];
+  const kontaktCard = `
+    <div class="card">
+      <div class="tabs" id="kontakt-tabs">
+        ${kontaktTabs.map(([key,label], i) => `<button class="tab-btn${i===0?' active':''}" data-tab="${key}">${label}</button>`).join('')}
+      </div>
+      <div id="kontakt-tab-body">${contactTabBody('eigentuemer', kontakte.eigentuemer)}</div>
+    </div>
+  `;
+
+  const termine = (k.termine||[]).filter(t => t.datum || t.zeit);
+  const termineCard = `
+    <div class="card">
+      <h3>Service-Termine</h3>
+      ${termine.length ? `<ul class="timeline">
+        ${termine.map(t => `<li><span class="tdot"></span><span class="tlabel">${t.halbjahr}. Halbjahr ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(t.zeit)+' Uhr'):''}</span></li>`).join('')}
+      </ul>` : '<div class="kv"><span class="k">Keine Termine erfasst</span></div>'}
+    </div>
+  `;
+
+  const bem = k.bemerkungen || {};
+  const bemEntries = [
+    ['Büro', bem.buero],
+    ['Intern', bem.intern],
+    ['Planung', bem.planung],
+    ['Besonderes', bem.besonderes],
+    ['Ersatzteile', bem.ersatzteile],
+    ['Ersatzteile (alt)', bem.ersatzteileAlt],
+    ...(bem.weitere || []).map(w => [w.label, w.value]),
+  ].filter(([,v]) => v);
+  const bemCard = `
+    <div class="card">
+      <h3>Bemerkungen</h3>
+      ${bemEntries.length ? bemEntries.map(([label,val]) => `
+        <div class="remark"><div class="rlabel">${escapeHtml(label)}</div>${escapeHtml(val)}</div>
+      `).join('') : '<div class="kv"><span class="k">Keine Bemerkungen</span></div>'}
+    </div>
+  `;
+
+  const raw = k.rohdaten || {};
+  const rawGrid = Object.keys(raw).map(key => {
+    const v = raw[key];
+    if(v===null || v===undefined || v==='' ) return '';
+    return `<div class="raw-cell"><span class="rk">${escapeHtml(key)}</span><span class="rv">${escapeHtml(v)}</span></div>`;
+  }).join('');
+  const rawCard = `
+    <details class="raw">
+      <summary>Alle Original-Felder anzeigen (Rohdaten)</summary>
+      <div class="raw-grid">${rawGrid}</div>
+    </details>
+  `;
+
+  $('#detail-panel').innerHTML = `
+    ${header}
+    <div class="grid">${anlageCard}${planungCard}</div>
+    ${kontaktCard}
+    ${termineCard}
+    ${bemCard}
+    ${rawCard}
+  `;
+
+  // Tab-Wechsel für Kontakte verdrahten
+  const tabsEl = document.getElementById('kontakt-tabs');
+  if(tabsEl){
+    tabsEl.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabsEl.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const key = btn.dataset.tab;
+        document.getElementById('kontakt-tab-body').innerHTML = contactTabBody(key, kontakte[key]);
+      });
+    });
+  }
+}
+
+function kv(label, value, mono){
+  if(value===null || value===undefined || value==='') return '';
+  return `<div class="kv"><span class="k">${escapeHtml(label)}</span><span class="v${mono?' mono':''}">${escapeHtml(value)}</span></div>`;
+}
+
+checkSession();
+</script>
+</body>
+</html>
