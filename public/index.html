@@ -519,17 +519,21 @@ function renderDetail(k){
   `;
 
   const pl = k.planung || {};
-  const service1 = combinedDatumZeit(pl.datS, pl.zeitS);
-  const service2 = combinedDatumZeit(pl.dat226, pl.zeit226);
+  const service1Val = combinedDatumZeit(pl.datS, pl.zeitS);
+  const service2Val = combinedDatumZeit(pl.dat226, pl.zeit226);
+  const sameService = service1Val && service2Val && pl.datS === pl.dat226 && pl.zeitS === pl.zeit226;
+  const tagPrefix = pl.tag ? pl.tag + ', ' : '';
+  const service1 = service1Val ? tagPrefix + service1Val : null;
+  const service2 = service2Val ? tagPrefix + service2Val : null;
   const service1Label = '1. Service' + (formatDatumJahr(pl.datS) ? ' ' + formatDatumJahr(pl.datS) : '');
   const service2Label = '2. Service' + (formatDatumJahr(pl.dat226) ? ' ' + formatDatumJahr(pl.dat226) : '');
+  const serviceLabel = sameService ? 'Service' + (formatDatumJahr(pl.datS) ? ' ' + formatDatumJahr(pl.datS) : '') : service1Label;
   const planungCard = `
     <div class="card">
       <h3>Planung / Tour</h3>
       ${kv('Kontrolle Planung', pl.kontrollePlanung)}
-      ${kv('Tag', pl.tag)}
-      ${kv(service1Label, service1)}
-      ${kv(service2Label, service2)}
+      ${kv(serviceLabel, service1)}
+      ${sameService ? '' : kv(service2Label, service2)}
       ${kv('Zuständiger Kanton', pl.zustKt)}
     </div>
   `;
