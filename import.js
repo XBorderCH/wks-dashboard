@@ -37,6 +37,20 @@ function clean(v) {
   return s;
 }
 
+// Manche Zeit-Spalten sind in Excel als echte Zeitzelle formatiert (kommt als Date-Objekt
+// mit Datum 1899-12-30 an), andere als reine Zahl (z.B. "1429"). Beide auf "HHMM" normalisieren,
+// damit die Anzeige später gleich formatiert (HH:MM) werden kann.
+function cleanZeit(v) {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return null;
+    const hh = String(v.getUTCHours()).padStart(2, '0');
+    const mm = String(v.getUTCMinutes()).padStart(2, '0');
+    return `${hh}${mm}`;
+  }
+  return clean(v);
+}
+
 function prettify(col) {
   return col.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -86,7 +100,7 @@ const kunden = rows.map((row) => {
     if (zm) {
       const key = `${zm[1]}_${zm[2]}`;
       termineMap[key] = termineMap[key] || { halbjahr: zm[1], jahr: '20' + zm[2] };
-      const val = clean(row[col]);
+      const val = cleanZeit(row[col]);
       if (val) termineMap[key].zeit = val;
     }
   });
@@ -172,9 +186,9 @@ const kunden = rows.map((row) => {
       kontrollePlanung: clean(row['Kontrolle Planung']),
       tag: clean(row['Tag']),
       datS: fmtDate(row['Dat_S']),
-      zeitS: clean(row['Zeit_S']),
+      zeitS: cleanZeit(row['Zeit_S']),
       dat226: fmtDate(row['Dat_2_26']),
-      zeit226: clean(row['Zeit_2_26']),
+      zeit226: cleanZeit(row['Zeit_2_26']),
       datAvis: fmtDate(row['DatAvis']),
       zustKt: clean(row['Zust.Kt.']),
     },
