@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Kundendatenbank</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -166,6 +166,9 @@
   .kv .k{color:var(--ink-soft);flex:none;}
   .kv .v{text-align:right;font-weight:500;}
   .kv .v.mono{font-family:'IBM Plex Mono',monospace;font-weight:500;}
+  .kv .v.link{color:var(--accent-ink);text-decoration:none;}
+  .kv .v.link:hover{text-decoration:underline;}
+  .kv .v.link:active{opacity:0.7;}
 
   .tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;}
   .tab-btn{
@@ -376,7 +379,25 @@ function fmtChf(v){
   return String(v);
 }
 
-// "1330" -> "13:30", "730" -> "07:30"
+// "N47.45495° E7.58525°" -> Google-Maps-Link
+function koordinatenLink(v){
+  if(!v) return null;
+  const m = String(v).match(/([NS])\s*([\d.]+)\D*([EW])\s*([\d.]+)/i);
+  if(!m) return null;
+  let lat = parseFloat(m[2]);
+  let lon = parseFloat(m[4]);
+  if(/S/i.test(m[1])) lat = -lat;
+  if(/W/i.test(m[3])) lon = -lon;
+  if(isNaN(lat) || isNaN(lon)) return null;
+  return `https://www.google.com/maps?q=${lat},${lon}`;
+}
+
+function telHref(v){
+  if(!v) return null;
+  const digits = String(v).replace(/[^\d+]/g,'');
+  if(!digits) return null;
+  return 'tel:' + digits;
+}
 function formatZeit(v){
   if(v===null||v===undefined||v==='') return null;
   const digits = String(v).trim().replace(/[^\d]/g,'');
@@ -465,7 +486,12 @@ function contactTabBody(tabKey, c){
   }
 
   const rowsHtml = rows.length
-    ? rows.map(([k,v]) => `<div class="kv"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')
+    ? rows.map(([k,v]) => {
+        if((k === 'Natel' || k === 'Telefon') && telHref(v)){
+          return `<div class="kv"><span class="k">${k}</span><a class="v link" href="${telHref(v)}">${escapeHtml(v)}</a></div>`;
+        }
+        return `<div class="kv"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`;
+      }).join('')
     : '<div class="kv"><span class="k">Keine Kontaktdaten</span></div>';
 
   return rowsHtml + extraHtml;
@@ -500,7 +526,7 @@ function renderDetail(k){
       <h3>Anlage &amp; Adresse</h3>
       ${kv('Adresse', a.adresse)}
       ${kv('PLZ / Ort', [a.plz, a.ort].filter(Boolean).join(' '))}
-      ${kv('Koordinaten', a.koordinaten, true)}
+      ${kvLink('Koordinaten', a.koordinaten, koordinatenLink(a.koordinaten), true)}
       ${kv('Region', a.region)}
       ${kv('Anlagenlieferant', a.anlagenlieferant)}
       ${kv('Anlagentyp', a.anlagentyp)}
@@ -641,6 +667,12 @@ function renderDetail(k){
 function kv(label, value, mono){
   if(value===null || value===undefined || value==='') return '';
   return `<div class="kv"><span class="k">${escapeHtml(label)}</span><span class="v${mono?' mono':''}">${escapeHtml(value)}</span></div>`;
+}
+
+function kvLink(label, value, href, mono){
+  if(value===null || value===undefined || value==='') return '';
+  if(!href) return kv(label, value, mono);
+  return `<div class="kv"><span class="k">${escapeHtml(label)}</span><a class="v link${mono?' mono':''}" href="${href}" target="_blank" rel="noopener">${escapeHtml(value)}</a></div>`;
 }
 
 checkSession();
