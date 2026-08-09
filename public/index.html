@@ -187,8 +187,9 @@
   .tour-item .tour-fahrer{
     font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;
     padding:3px 8px;border-radius:20px;flex:none;
-    background:#EEF1EF;color:var(--ink-soft);
   }
+  .tour-item .tour-fahrer.ralph{background:#E4EBFB;color:#2A4BA0;}
+  .tour-item .tour-fahrer.kathrin{background:#E1F0EA;color:#1D7A50;}
   .tour-item .tour-badge{
     font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;
     color:var(--accent-ink);flex:none;
@@ -239,6 +240,10 @@
     text-align:center;
   }
   .fahrer-btn:hover{background:var(--bg);border-color:var(--accent);}
+  .fahrer-btn.r{background:#E4EBFB;border-color:#E4EBFB;color:#2A4BA0;}
+  .fahrer-btn.r:hover{border-color:#2A4BA0;}
+  .fahrer-btn.k{background:#E1F0EA;border-color:#E1F0EA;color:#1D7A50;}
+  .fahrer-btn.k:hover{border-color:#1D7A50;}
   .fahrer-back{
     display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--ink-soft);
     font-size:13px;cursor:pointer;font-family:inherit;padding:10px;
@@ -847,7 +852,7 @@ async function openTagestour(datum, fahrer){
             <div class="tour-name">${escapeHtml(t.kdnrName || ('#'+t.kdnr))}</div>
             ${t.ort ? `<div class="tour-ort">${escapeHtml(t.ort)}</div>` : ''}
           </span>
-          ${t.fahrer ? `<span class="tour-fahrer">${escapeHtml(t.fahrer)}</span>` : ''}
+          ${t.fahrer ? `<span class="tour-fahrer ${t.fahrer === 'Ralph' ? 'ralph' : 'kathrin'}">${escapeHtml(t.fahrer)}</span>` : ''}
           ${isSelf ? '<span class="tour-badge">Aktuell</span>' : ''}
         </div>
       `;
@@ -964,8 +969,8 @@ function showFahrerWahl(datum){
   $('#tage-body').innerHTML = `
     <button type="button" class="fahrer-back" id="fahrer-back">&larr; Zurück zur Übersicht</button>
     <div class="fahrer-choice">
-      <button type="button" class="fahrer-btn" data-fahrer="Ralph">Ralph</button>
-      <button type="button" class="fahrer-btn" data-fahrer="Kathrin">Kathrin</button>
+      <button type="button" class="fahrer-btn k" data-fahrer="Kathrin">Kathrin</button>
+      <button type="button" class="fahrer-btn r" data-fahrer="Ralph">Ralph</button>
     </div>
   `;
   $('#fahrer-back').addEventListener('click', openEinsatztage);
