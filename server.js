@@ -166,6 +166,12 @@ function parseDMS(str) {
 // Betriebsstandort (Ausgangs-/Endpunkt der Touren)
 const BASIS_KOORDINATE = parseDMS(`47°23'56.2"N 9°17'28.2"E`);
 
+// Manuelle Koordinaten-Korrekturen für einzelne Kunden, bei denen die hinterlegte
+// Koordinate (und auch der Adress-Fallback) von Google nicht gefunden wird.
+const KOORDINATEN_OVERRIDE = {
+  '100': parseDMS(`47°06'52.7"N 9°15'11.9"E`),
+};
+
 // Baut den Anfrage-Parameter für einen Punkt: normalerweise Koordinaten,
 // im Fallback-Modus die Postadresse (falls vorhanden), damit Google selbst
 // den nächstgelegenen befahrbaren Punkt sucht.
@@ -267,7 +273,9 @@ function ermittleRoutenPunkte(datum, fahrer) {
   kunden.forEach((k) => {
     const termin = (k.termine || []).find((t) => t.datum === datum);
     if (termin && k.planung && k.planung.fahrer === fahrer) {
-      const koord = parseKoordinatenServer(k.anlage && k.anlage.koordinaten);
+      const koord = KOORDINATEN_OVERRIDE[k.kdnr]
+        ? { ...KOORDINATEN_OVERRIDE[k.kdnr] }
+        : parseKoordinatenServer(k.anlage && k.anlage.koordinaten);
       if (koord) {
         const a = k.anlage || {};
         const adresseText = [a.adresse, [a.plz, a.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -290,18 +298,18 @@ function ermittleRoutenPunkte(datum, fahrer) {
   if (BASIS_KOORDINATE && kundenPunkte.length) {
     if (fahrer === 'Kathrin') {
       punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
-      basisHinweis = 'ab/an Herisau';
+      basisHinweis = 'Abfahrt/Ankunft Herisau';
     } else if (fahrer === 'Ralph') {
       const kette = findeKette(datum, alleArbeitstage('Ralph'));
       if (!kette || kette.laenge <= 1) {
         punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
-        basisHinweis = 'ab/an Herisau';
+        basisHinweis = 'Abfahrt/Ankunft Herisau';
       } else if (kette.istErsterTag) {
         punkte = [BASIS_KOORDINATE, ...kundenPunkte];
-        basisHinweis = 'ab Herisau (Start der Mehrtagestour)';
+        basisHinweis = 'Abfahrt Herisau';
       } else if (kette.istLetzterTag) {
         punkte = [...kundenPunkte, BASIS_KOORDINATE];
-        basisHinweis = 'an Herisau (Ende der Mehrtagestour)';
+        basisHinweis = 'Ankunft Herisau';
       }
     }
   }
