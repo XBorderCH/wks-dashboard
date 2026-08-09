@@ -111,6 +111,34 @@ app.get('/api/tagestour/:datum', requireAuth, (req, res) => {
   res.json({ datum, kunden: treffer });
 });
 
+// Alle Tage im aktuellen Jahr, an denen mindestens ein Service-Termin stattfindet (für "Einsatztage")
+function parseDatumServer(v) {
+  const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+app.get('/api/tage', requireAuth, (req, res) => {
+  const jahr = new Date().getFullYear();
+  const map = {};
+  kunden.forEach((k) => {
+    (k.termine || []).forEach((t) => {
+      if (!t.datum) return;
+      const d = parseDatumServer(t.datum);
+      if (!d || d.getFullYear() !== jahr) return;
+      if (!map[t.datum]) map[t.datum] = { ralph: 0, kathrin: 0, sonst: 0 };
+      const f = k.planung ? k.planung.fahrer : null;
+      if (f === 'Ralph') map[t.datum].ralph++;
+      else if (f === 'Kathrin') map[t.datum].kathrin++;
+      else map[t.datum].sonst++;
+    });
+  });
+  const tage = Object.keys(map)
+    .map((datum) => ({ datum, ...map[datum] }))
+    .sort((a, b) => parseDatumServer(a.datum) - parseDatumServer(b.datum));
+  res.json({ jahr, tage });
+});
+
 app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ anzahl: kunden.length });
 });

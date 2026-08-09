@@ -155,11 +155,11 @@
   .chip-clickable:active{filter:brightness(0.9);}
 
   /* ---- Tagestour-Modal ---- */
-  #tagestour-overlay{
+  #tagestour-overlay, #tage-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
     align-items:center;justify-content:center;padding:20px;
   }
-  #tagestour-overlay.open{display:flex;}
+  #tagestour-overlay.open, #tage-overlay.open{display:flex;}
   .modal-card{
     background:var(--surface);border-radius:12px;max-width:440px;width:100%;
     max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(20,30,26,0.2);
@@ -194,6 +194,47 @@
     color:var(--accent-ink);flex:none;
   }
   .modal-empty{padding:24px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
+
+  /* ---- Logo-Dropdown-Menü ---- */
+  .logo-menu-wrap{position:relative;}
+  .logo-btn{cursor:pointer;border:none;}
+  .logo-menu{
+    display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:50;
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    box-shadow:0 6px 20px rgba(20,30,26,0.12);min-width:200px;overflow:hidden;padding:6px;
+  }
+  .logo-menu.open{display:block;}
+  .logo-menu-item{
+    display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:none;
+    background:none;cursor:pointer;font-family:inherit;font-size:14px;color:var(--ink);
+    border-radius:7px;text-align:left;
+  }
+  .logo-menu-item:hover{background:var(--bg);}
+  .lmi-icon{font-size:15px;flex:none;}
+
+  /* ---- Einsatztage-Modal ---- */
+  .tage-section-title{
+    font-size:11px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;
+    color:var(--ink-soft);padding:14px 10px 6px;
+  }
+  .tage-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 10px;border-radius:8px;cursor:pointer;
+  }
+  .tage-item:hover{background:var(--bg);}
+  .tage-item .tage-datum{font-size:14.5px;font-weight:500;}
+  .tage-item .tage-count{font-size:12px;color:var(--ink-soft);}
+  .fahrer-choice{display:flex;gap:10px;padding:14px 10px;}
+  .fahrer-btn{
+    flex:1;padding:14px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+    cursor:pointer;font-family:inherit;font-size:14.5px;font-weight:600;color:var(--ink);
+    text-align:center;
+  }
+  .fahrer-btn:hover{background:var(--bg);border-color:var(--accent);}
+  .fahrer-back{
+    display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--ink-soft);
+    font-size:13px;cursor:pointer;font-family:inherit;padding:10px;
+  }
 
   .grid{
     display:grid;grid-template-columns:repeat(auto-fit, minmax(280px,1fr));gap:12px;margin-bottom:12px;
@@ -286,8 +327,14 @@
 
 <div id="app">
   <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark"><img src="/tropfen-icon.png" alt="WKS" /></div>
+    <div class="brand logo-menu-wrap">
+      <button type="button" class="brand-mark logo-btn" id="logo-btn"><img src="/tropfen-icon.png" alt="WKS" /></button>
+      <div class="logo-menu" id="logo-menu">
+        <button type="button" class="logo-menu-item" data-menu="einsatztage">
+          <span class="lmi-icon">&#128197;</span>
+          <span>Einsatztage</span>
+        </button>
+      </div>
     </div>
     <div class="search-wrap">
       <span class="icon">&#9906;</span>
@@ -317,6 +364,16 @@
       <button class="modal-close" id="tagestour-close">&times;</button>
     </div>
     <div class="modal-body" id="tagestour-body"></div>
+  </div>
+</div>
+
+<div id="tage-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="tage-title">Einsatztage</h3>
+      <button class="modal-close" id="tage-close">&times;</button>
+    </div>
+    <div class="modal-body" id="tage-body"></div>
   </div>
 </div>
 
@@ -806,6 +863,100 @@ function closeTagestour(){
 $('#tagestour-close').addEventListener('click', closeTagestour);
 $('#tagestour-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'tagestour-overlay') closeTagestour();
+});
+
+// ---- Logo-Dropdown-Menü ----
+const logoBtn = $('#logo-btn');
+const logoMenu = $('#logo-menu');
+if(logoBtn){
+  logoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    logoMenu.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if(!logoMenu.contains(e.target) && e.target !== logoBtn){
+      logoMenu.classList.remove('open');
+    }
+  });
+  logoMenu.querySelectorAll('.logo-menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      logoMenu.classList.remove('open');
+      const menu = item.dataset.menu;
+      if(menu === 'einsatztage') openEinsatztage();
+    });
+  });
+}
+
+// ---- Einsatztage-Übersicht ----
+async function openEinsatztage(){
+  const overlay = $('#tage-overlay');
+  $('#tage-title').textContent = 'Einsatztage';
+  $('#tage-body').innerHTML = '<div class="modal-empty">Lade…</div>';
+  overlay.classList.add('open');
+
+  try{
+    const r = await fetch('/api/tage');
+    const d = await r.json();
+    const tage = d.tage || [];
+    const heute = new Date(); heute.setHours(0,0,0,0);
+
+    const kommend = tage.filter(t => { const dd = parseDatum(t.datum); return dd && dd.getTime() >= heute.getTime(); });
+    const vergangen = tage.filter(t => { const dd = parseDatum(t.datum); return dd && dd.getTime() < heute.getTime(); });
+
+    if(!tage.length){
+      $('#tage-body').innerHTML = `<div class="modal-empty">Keine Einsatztage für ${d.jahr} gefunden.</div>`;
+      return;
+    }
+
+    const renderTag = (t) => `
+      <div class="tage-item" data-datum="${escapeHtml(t.datum)}">
+        <span class="tage-datum">${escapeHtml(t.datum)}</span>
+        <span class="tage-count">${t.ralph + t.kathrin + t.sonst} Kunden</span>
+      </div>
+    `;
+
+    let html = '';
+    if(kommend.length){
+      html += `<div class="tage-section-title">Ab heute</div>` + kommend.map(renderTag).join('');
+    }
+    if(vergangen.length){
+      html += `<div class="tage-section-title">Vergangen (${d.jahr})</div>` + vergangen.map(renderTag).join('');
+    }
+    $('#tage-body').innerHTML = html;
+
+    $('#tage-body').querySelectorAll('.tage-item').forEach(el => {
+      el.addEventListener('click', () => showFahrerWahl(el.dataset.datum));
+    });
+  }catch(err){
+    $('#tage-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
+  }
+}
+
+function showFahrerWahl(datum){
+  $('#tage-title').textContent = datum;
+  $('#tage-body').innerHTML = `
+    <button type="button" class="fahrer-back" id="fahrer-back">&larr; Zurück zur Übersicht</button>
+    <div class="fahrer-choice">
+      <button type="button" class="fahrer-btn" data-fahrer="Ralph">Ralph</button>
+      <button type="button" class="fahrer-btn" data-fahrer="Kathrin">Kathrin</button>
+    </div>
+  `;
+  $('#fahrer-back').addEventListener('click', openEinsatztage);
+  $('#tage-body').querySelectorAll('.fahrer-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeTage();
+      openTagestour(datum, btn.dataset.fahrer);
+    });
+  });
+}
+
+function closeTage(){
+  $('#tage-overlay').classList.remove('open');
+}
+
+$('#tage-close').addEventListener('click', closeTage);
+$('#tage-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'tage-overlay') closeTage();
 });
 
 checkSession();
