@@ -266,18 +266,18 @@ function ermittleRoutenPunkte(datum, fahrer) {
   if (BASIS_KOORDINATE && kundenPunkte.length) {
     if (fahrer === 'Kathrin') {
       punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
-      basisHinweis = 'ab/an Standort';
+      basisHinweis = 'ab/an Herisau';
     } else if (fahrer === 'Ralph') {
       const kette = findeKette(datum, alleArbeitstage('Ralph'));
       if (!kette || kette.laenge <= 1) {
         punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
-        basisHinweis = 'ab/an Standort';
+        basisHinweis = 'ab/an Herisau';
       } else if (kette.istErsterTag) {
         punkte = [BASIS_KOORDINATE, ...kundenPunkte];
-        basisHinweis = 'ab Standort (Start der Mehrtagestour)';
+        basisHinweis = 'ab Herisau (Start der Mehrtagestour)';
       } else if (kette.istLetzterTag) {
         punkte = [...kundenPunkte, BASIS_KOORDINATE];
-        basisHinweis = 'an Standort (Ende der Mehrtagestour)';
+        basisHinweis = 'an Herisau (Ende der Mehrtagestour)';
       }
     }
   }
@@ -353,6 +353,7 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
   let totalMinuten = 0;
   let ausgewertet = 0;
   let fehlerAnzahl = 0;
+  const fehlerDetails = [];
 
   const PARALLEL = 6;
   let index = 0;
@@ -362,6 +363,7 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
       const erg = await holeRouteFuerTag(datum, fahrer, apiKey);
       if (erg.fehler) {
         fehlerAnzahl++;
+        fehlerDetails.push({ datum, fahrer, grund: erg.fehler });
       } else if (erg.km !== null) {
         totalKm += erg.km;
         totalMinuten += erg.dauerMinuten;
@@ -378,6 +380,7 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
     tageAusgewertet: ausgewertet,
     tageGesamt: aufgaben.length,
     fehlerAnzahl,
+    fehlerDetails,
   });
 });
 

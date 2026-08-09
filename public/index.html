@@ -228,6 +228,7 @@
     color:var(--accent-ink);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
   }
   .strecke-btn:hover{background:var(--accent-soft);border-style:solid;}
+  .fehler-details{margin-top:6px;font-size:11.5px;color:var(--ink-soft);line-height:1.6;}
   .route-summary{
     margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
     font-size:14px;color:var(--ink-soft);
@@ -1052,6 +1053,11 @@ async function ladeJahresstrecke(){
     text += `<br>Total Fahrzeit ${d.jahr}: <strong>${dauerText}</strong>`;
     if(d.fehlerAnzahl > 0){
       text += ` <span class="route-hinweis">(${d.fehlerAnzahl} Tag${d.fehlerAnzahl>1?'e':''} konnte${d.fehlerAnzahl>1?'n':''} nicht berechnet werden)</span>`;
+      if(d.fehlerDetails && d.fehlerDetails.length){
+        text += '<div class="fehler-details">' + d.fehlerDetails.map(f =>
+          `${escapeHtml(f.datum)} · ${escapeHtml(f.fahrer)}: ${escapeHtml(f.grund)}`
+        ).join('<br>') + '</div>';
+      }
     }
     wrapAktuell.innerHTML = text;
   }catch(err){
