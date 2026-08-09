@@ -223,6 +223,11 @@
     font-size:14px;color:var(--ink-soft);
   }
   .tage-summary strong{color:var(--ink);font-weight:700;}
+  .strecke-btn{
+    width:100%;padding:11px;border:1px dashed var(--line);border-radius:8px;background:none;
+    color:var(--accent-ink);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+  }
+  .strecke-btn:hover{background:var(--accent-soft);border-style:solid;}
   .route-summary{
     margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
     font-size:14px;color:var(--ink-soft);
@@ -857,6 +862,9 @@ async function ladeRoute(datum, fahrer){
     const min = d.dauerMinuten % 60;
     const dauerText = std > 0 ? `${std} Std ${min} Min` : `${min} Min`;
     let text = `Fahrstrecke: <strong>${d.km.toLocaleString('de-CH')} km</strong> · Fahrzeit: <strong>${dauerText}</strong>`;
+    if(d.basisHinweis){
+      text += ` <span class="route-hinweis">(${escapeHtml(d.basisHinweis)})</span>`;
+    }
     if(d.fehlendeKoordinaten > 0){
       text += ` <span class="route-hinweis">(${d.fehlendeKoordinaten} Stopp${d.fehlendeKoordinaten>1?'s':''} ohne Koordinaten nicht berücksichtigt)</span>`;
     }
@@ -994,7 +1002,15 @@ async function openEinsatztage(){
     }
     const totalServicetage = tage.reduce((sum, t) => sum + (t.ralph > 0 ? 1 : 0) + (t.kathrin > 0 ? 1 : 0), 0);
     html += `<div class="tage-summary">Total Servicetage ${d.jahr}: <strong>${totalServicetage}</strong></div>`;
+    html += `<div class="tage-summary tage-summary-btn-wrap" style="border-top:none;padding-top:0;margin-top:-6px;">
+      <button type="button" class="strecke-btn" id="strecke-btn">Total Kilometer / Fahrzeit ${d.jahr} anzeigen</button>
+    </div>`;
     $('#tage-body').innerHTML = html;
+
+    const streckeBtn = document.getElementById('strecke-btn');
+    if(streckeBtn){
+      streckeBtn.addEventListener('click', ladeJahresstrecke);
+    }
 
     $('#tage-body').querySelectorAll('.tage-item').forEach(el => {
       el.addEventListener('click', () => {
@@ -1012,6 +1028,35 @@ async function openEinsatztage(){
     });
   }catch(err){
     $('#tage-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
+  }
+}
+
+async function ladeJahresstrecke(){
+  const wrap = document.querySelector('.tage-summary-btn-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = 'Total Kilometer / Fahrzeit: <strong>wird berechnet…</strong>';
+  try{
+    const r = await fetch('/api/tage/summe');
+    const d = await r.json();
+    const wrapAktuell = document.querySelector('.tage-summary-btn-wrap');
+    if(!wrapAktuell) return; // Modal inzwischen geschlossen
+
+    if(d.error){
+      wrapAktuell.innerHTML = `Kilometer konnten nicht berechnet werden (${escapeHtml(d.error)})`;
+      return;
+    }
+    const std = Math.floor(d.totalMinuten / 60);
+    const min = d.totalMinuten % 60;
+    const dauerText = `${std} Std ${min} Min`;
+    let text = `Total Kilometer ${d.jahr}: <strong>${d.totalKm.toLocaleString('de-CH')} km</strong>`;
+    text += `<br>Total Fahrzeit ${d.jahr}: <strong>${dauerText}</strong>`;
+    if(d.fehlerAnzahl > 0){
+      text += ` <span class="route-hinweis">(${d.fehlerAnzahl} Tag${d.fehlerAnzahl>1?'e':''} konnte${d.fehlerAnzahl>1?'n':''} nicht berechnet werden)</span>`;
+    }
+    wrapAktuell.innerHTML = text;
+  }catch(err){
+    const wrapAktuell = document.querySelector('.tage-summary-btn-wrap');
+    if(wrapAktuell) wrapAktuell.innerHTML = 'Kilometer konnten nicht berechnet werden.';
   }
 }
 

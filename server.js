@@ -152,6 +152,20 @@ function parseKoordinatenServer(v) {
   return { lat, lon };
 }
 
+// Parst DMS-Koordinaten wie 47°23'56.2"N 9°17'28.2"E
+function parseDMS(str) {
+  const m = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])\s+(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
+  if (!m) return null;
+  let lat = Number(m[1]) + Number(m[2]) / 60 + Number(m[3]) / 3600;
+  let lon = Number(m[5]) + Number(m[6]) / 60 + Number(m[7]) / 3600;
+  if (/S/i.test(m[4])) lat = -lat;
+  if (/W/i.test(m[8])) lon = -lon;
+  return { lat, lon };
+}
+
+// Betriebsstandort (Ausgangs-/Endpunkt der Touren)
+const BASIS_KOORDINATE = parseDMS(`47°23'56.2"N 9°17'28.2"E`);
+
 // Ruft die Google Directions API auf; bricht die Punkteliste in Blöcke, falls
 // mehr Stopps als in einer einzelnen Anfrage erlaubt sind (Google-Limit: 25 Punkte/Anfrage).
 async function berechneRoute(punkte, apiKey) {
@@ -194,14 +208,43 @@ async function berechneRoute(punkte, apiKey) {
   return { meter: gesamtMeter, sekunden: gesamtSekunden };
 }
 
-// Fahrstrecke + Fahrzeit für die Tagestour eines Fahrers an einem Datum
-app.get('/api/route/:datum/:fahrer', requireAuth, async (req, res) => {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    return res.status(400).json({ error: 'GOOGLE_MAPS_API_KEY ist nicht gesetzt.' });
-  }
+// Alle Tage (als Timestamp um Mitternacht), an denen ein bestimmter Fahrer mindestens einen Termin hat
+function alleArbeitstage(fahrerName) {
+  const dates = new Set();
+  kunden.forEach((k) => {
+    if (!k.planung || k.planung.fahrer !== fahrerName) return;
+    (k.termine || []).forEach((t) => {
+      if (!t.datum) return;
+      const d = parseDatumServer(t.datum);
+      if (d) dates.add(d.getTime());
+    });
+  });
+  return dates;
+}
 
-  const { datum, fahrer } = req.params;
+// Ermittelt die zusammenhängende Kette aufeinanderfolgender Arbeitstage, zu der ein Datum gehört
+function findeKette(datum, arbeitstageSet) {
+  const start = parseDatumServer(datum);
+  if (!start) return null;
+  const TAG = 24 * 60 * 60 * 1000;
+  let kettenStart = start.getTime();
+  while (arbeitstageSet.has(kettenStart - TAG)) kettenStart -= TAG;
+  let kettenEnde = start.getTime();
+  while (arbeitstageSet.has(kettenEnde + TAG)) kettenEnde += TAG;
+  const laenge = Math.round((kettenEnde - kettenStart) / TAG) + 1;
+  return {
+    istErsterTag: start.getTime() === kettenStart,
+    istLetzterTag: start.getTime() === kettenEnde,
+    laenge,
+  };
+}
+
+// Baut die Punkteliste (inkl. Basis-Standort-Regel) für einen Fahrer/Tag und berechnet die Route.
+// Ergebnisse werden im Speicher gecacht, damit wiederholte Anfragen (z.B. Jahressumme) nicht
+// jedes Mal neu bei Google abgefragt werden müssen.
+const routenCache = new Map(); // Key: "datum|fahrer" -> { km, dauerMinuten, ... } | { fehler: true }
+
+function ermittleRoutenPunkte(datum, fahrer) {
   const stopps = [];
   kunden.forEach((k) => {
     const termin = (k.termine || []).find((t) => t.datum === datum);
@@ -215,24 +258,127 @@ app.get('/api/route/:datum/:fahrer', requireAuth, async (req, res) => {
     return za - zb;
   });
 
-  const punkte = stopps.map((s) => s.koord).filter(Boolean);
-  const fehlendeKoordinaten = stopps.length - punkte.length;
+  const kundenPunkte = stopps.map((s) => s.koord).filter(Boolean);
+  const fehlendeKoordinaten = stopps.length - kundenPunkte.length;
 
+  let punkte = kundenPunkte;
+  let basisHinweis = null;
+  if (BASIS_KOORDINATE && kundenPunkte.length) {
+    if (fahrer === 'Kathrin') {
+      punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
+      basisHinweis = 'ab/an Standort';
+    } else if (fahrer === 'Ralph') {
+      const kette = findeKette(datum, alleArbeitstage('Ralph'));
+      if (!kette || kette.laenge <= 1) {
+        punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
+        basisHinweis = 'ab/an Standort';
+      } else if (kette.istErsterTag) {
+        punkte = [BASIS_KOORDINATE, ...kundenPunkte];
+        basisHinweis = 'ab Standort (Start der Mehrtagestour)';
+      } else if (kette.istLetzterTag) {
+        punkte = [...kundenPunkte, BASIS_KOORDINATE];
+        basisHinweis = 'an Standort (Ende der Mehrtagestour)';
+      }
+    }
+  }
+
+  return { punkte, anzahlStopps: stopps.length, fehlendeKoordinaten, basisHinweis };
+}
+
+async function holeRouteFuerTag(datum, fahrer, apiKey) {
+  const cacheKey = `${datum}|${fahrer}`;
+  if (routenCache.has(cacheKey)) return routenCache.get(cacheKey);
+
+  const { punkte, anzahlStopps, fehlendeKoordinaten, basisHinweis } = ermittleRoutenPunkte(datum, fahrer);
+
+  let ergebnis;
   if (punkte.length < 2) {
-    return res.json({ km: null, dauerMinuten: null, anzahlStopps: stopps.length, fehlendeKoordinaten, hinweis: 'Zu wenige Koordinaten für eine Route.' });
+    ergebnis = { km: null, dauerMinuten: null, anzahlStopps, fehlendeKoordinaten, hinweis: 'Zu wenige Koordinaten für eine Route.' };
+  } else {
+    try {
+      const { meter, sekunden } = await berechneRoute(punkte, apiKey);
+      ergebnis = {
+        km: Math.round((meter / 1000) * 10) / 10,
+        dauerMinuten: Math.round(sekunden / 60),
+        anzahlStopps,
+        fehlendeKoordinaten,
+        basisHinweis,
+      };
+    } catch (err) {
+      ergebnis = { fehler: err.message, anzahlStopps, fehlendeKoordinaten };
+    }
+  }
+  routenCache.set(cacheKey, ergebnis);
+  return ergebnis;
+}
+
+// Fahrstrecke + Fahrzeit für die Tagestour eines Fahrers an einem Datum
+app.get('/api/route/:datum/:fahrer', requireAuth, async (req, res) => {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'GOOGLE_MAPS_API_KEY ist nicht gesetzt.' });
+  }
+  const { datum, fahrer } = req.params;
+  const ergebnis = await holeRouteFuerTag(datum, fahrer, apiKey);
+  if (ergebnis.fehler) return res.status(502).json({ error: ergebnis.fehler });
+  res.json(ergebnis);
+});
+
+// Summe aller Fahrstrecken/-zeiten im aktuellen Jahr (mit Cache; parallelisiert in kleinen Blöcken)
+app.get('/api/tage/summe', requireAuth, async (req, res) => {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'GOOGLE_MAPS_API_KEY ist nicht gesetzt.' });
   }
 
-  try {
-    const { meter, sekunden } = await berechneRoute(punkte, apiKey);
-    res.json({
-      km: Math.round((meter / 1000) * 10) / 10,
-      dauerMinuten: Math.round(sekunden / 60),
-      anzahlStopps: stopps.length,
-      fehlendeKoordinaten,
+  const jahr = new Date().getFullYear();
+  const aufgaben = []; // { datum, fahrer }
+  const map = {};
+  kunden.forEach((k) => {
+    (k.termine || []).forEach((t) => {
+      if (!t.datum) return;
+      const d = parseDatumServer(t.datum);
+      if (!d || d.getFullYear() !== jahr) return;
+      const f = k.planung ? k.planung.fahrer : null;
+      if (f !== 'Ralph' && f !== 'Kathrin') return;
+      const key = `${t.datum}|${f}`;
+      if (!map[key]) {
+        map[key] = true;
+        aufgaben.push({ datum: t.datum, fahrer: f });
+      }
     });
-  } catch (err) {
-    res.status(502).json({ error: err.message });
+  });
+
+  let totalKm = 0;
+  let totalMinuten = 0;
+  let ausgewertet = 0;
+  let fehlerAnzahl = 0;
+
+  const PARALLEL = 6;
+  let index = 0;
+  async function worker() {
+    while (index < aufgaben.length) {
+      const { datum, fahrer } = aufgaben[index++];
+      const erg = await holeRouteFuerTag(datum, fahrer, apiKey);
+      if (erg.fehler) {
+        fehlerAnzahl++;
+      } else if (erg.km !== null) {
+        totalKm += erg.km;
+        totalMinuten += erg.dauerMinuten;
+        ausgewertet++;
+      }
+    }
   }
+  await Promise.all(Array.from({ length: PARALLEL }, worker));
+
+  res.json({
+    jahr,
+    totalKm: Math.round(totalKm * 10) / 10,
+    totalMinuten,
+    tageAusgewertet: ausgewertet,
+    tageGesamt: aufgaben.length,
+    fehlerAnzahl,
+  });
 });
 
 app.get('/api/meta', requireAuth, (req, res) => {
