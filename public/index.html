@@ -186,9 +186,8 @@
   .tour-item .tour-fahrer{
     font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;
     padding:3px 8px;border-radius:20px;flex:none;
+    background:#EEF1EF;color:var(--ink-soft);
   }
-  .tour-item .tour-fahrer.ralph{background:#E4EBFB;color:#2A4BA0;}
-  .tour-item .tour-fahrer.kathrin{background:#F6E4F5;color:#8A2E82;}
   .tour-item .tour-badge{
     font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;
     color:var(--accent-ink);flex:none;
@@ -578,7 +577,7 @@ function renderDetail(k){
     .filter(t => t._d && t._d.getTime() >= new Date(new Date().setHours(0,0,0,0)).getTime())
     .sort((a,b) => a._d - b._d)[0];
   const chip = naechsterTermin
-    ? `<button type="button" class="chip warn chip-clickable" onclick="openTagestour('${naechsterTermin.datum}')"><span class="dot"></span>Nächster Service: ${escapeHtml(combinedDatumZeit(naechsterTermin.datum, naechsterTermin.zeit))}</button>`
+    ? `<button type="button" class="chip warn chip-clickable" id="chip-tagestour" data-datum="${escapeHtml(naechsterTermin.datum)}" data-fahrer="${escapeHtml(pl.fahrer||'')}"><span class="dot"></span>Nächster Service: ${escapeHtml(combinedDatumZeit(naechsterTermin.datum, naechsterTermin.zeit))}</button>`
     : `<span class="chip ok"><span class="dot"></span>Kein Termin geplant</span>`;
 
   const backBtn = `<button class="back-btn" onclick="document.getElementById('results-panel').classList.remove('hidden-mobile')">&larr; Zur Suche</button>`;
@@ -736,6 +735,13 @@ function renderDetail(k){
       });
     });
   }
+
+  const tagestourBtn = document.getElementById('chip-tagestour');
+  if(tagestourBtn){
+    tagestourBtn.addEventListener('click', () => {
+      openTagestour(tagestourBtn.dataset.datum, tagestourBtn.dataset.fahrer);
+    });
+  }
 }
 
 function kv(label, value, mono){
@@ -749,23 +755,26 @@ function kvLink(label, value, href, mono){
   return `<div class="kv"><span class="k">${escapeHtml(label)}</span><a class="v link${mono?' mono':''}" href="${href}" target="_blank" rel="noopener">${escapeHtml(value)}</a></div>`;
 }
 
-async function openTagestour(datum){
+async function openTagestour(datum, fahrer){
   const overlay = $('#tagestour-overlay');
-  $('#tagestour-title').textContent = 'Tagestour · ' + datum;
+  $('#tagestour-title').textContent = 'Tagestour · ' + datum + (fahrer ? ' · ' + fahrer : '');
   $('#tagestour-body').innerHTML = '<div class="modal-empty">Lade…</div>';
   overlay.classList.add('open');
 
   try{
     const r = await fetch('/api/tagestour/' + encodeURIComponent(datum));
     const d = await r.json();
-    const liste = d.kunden || [];
+    let liste = d.kunden || [];
+    // Nur den gleichen Fahrer (gleiches Fahrzeug) anzeigen
+    if(fahrer){
+      liste = liste.filter(t => t.fahrer === fahrer);
+    }
     if(!liste.length){
       $('#tagestour-body').innerHTML = '<div class="modal-empty">Keine weiteren Termine an diesem Tag gefunden.</div>';
       return;
     }
     $('#tagestour-body').innerHTML = liste.map(t => {
       const isSelf = t.kdnr === activeKdnr;
-      const fahrerClass = t.fahrer === 'Ralph' ? 'ralph' : (t.fahrer === 'Kathrin' ? 'kathrin' : '');
       return `
         <div class="tour-item${isSelf ? ' self' : ''}" data-kdnr="${escapeHtml(t.kdnr)}">
           <span class="tour-zeit">${t.zeit ? escapeHtml(formatZeit(t.zeit)) : '—'}</span>
@@ -773,7 +782,7 @@ async function openTagestour(datum){
             <div class="tour-name">${escapeHtml(t.kdnrName || ('#'+t.kdnr))}</div>
             ${t.ort ? `<div class="tour-ort">${escapeHtml(t.ort)}</div>` : ''}
           </span>
-          ${t.fahrer ? `<span class="tour-fahrer ${fahrerClass}">${escapeHtml(t.fahrer)}</span>` : ''}
+          ${t.fahrer ? `<span class="tour-fahrer">${escapeHtml(t.fahrer)}</span>` : ''}
           ${isSelf ? '<span class="tour-badge">Aktuell</span>' : ''}
         </div>
       `;
