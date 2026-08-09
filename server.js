@@ -86,6 +86,31 @@ app.get('/api/kunden/:kdnr', requireAuth, (req, res) => {
   res.json(k);
 });
 
+// Alle Kunden, die am selben Tag (Format DD.MM.YYYY) einen Service-Termin haben – für die Tagestour
+app.get('/api/tagestour/:datum', requireAuth, (req, res) => {
+  const datum = req.params.datum;
+  const treffer = [];
+  kunden.forEach((k) => {
+    const termin = (k.termine || []).find((t) => t.datum === datum);
+    if (termin) {
+      treffer.push({
+        kdnr: k.kdnr,
+        kdnrName: k.kdnrName,
+        ort: k.anlage ? k.anlage.ort : null,
+        zeit: termin.zeit || null,
+        fahrer: k.planung ? k.planung.fahrer : null,
+      });
+    }
+  });
+  // Chronologisch sortieren, Termine ohne Zeitangabe ans Ende
+  treffer.sort((a, b) => {
+    const za = a.zeit ? parseInt(String(a.zeit).replace(/\D/g, ''), 10) : Infinity;
+    const zb = b.zeit ? parseInt(String(b.zeit).replace(/\D/g, ''), 10) : Infinity;
+    return za - zb;
+  });
+  res.json({ datum, kunden: treffer });
+});
+
 app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ anzahl: kunden.length });
 });

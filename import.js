@@ -51,6 +51,14 @@ function cleanZeit(v) {
   return clean(v);
 }
 
+function parseFahrer(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (/^Ralph\b/i.test(s)) return 'Ralph';
+  if (/^K\b/i.test(s)) return 'Kathrin';
+  return null;
+}
+
 function prettify(col) {
   return col.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -184,6 +192,7 @@ const kunden = rows.map((row) => {
 
     planung: {
       kontrollePlanung: clean(row['Kontrolle Planung']),
+      fahrer: parseFahrer(row['Kontrolle Planung']),
       tag: clean(row['Tag']),
       datS: fmtDate(row['Dat_S']),
       zeitS: cleanZeit(row['Zeit_S']),
