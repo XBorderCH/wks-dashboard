@@ -577,7 +577,7 @@ function renderDetail(k){
     .filter(t => t._d && t._d.getTime() >= new Date(new Date().setHours(0,0,0,0)).getTime())
     .sort((a,b) => a._d - b._d)[0];
   const chip = naechsterTermin
-    ? `<button type="button" class="chip warn chip-clickable" id="chip-tagestour" data-datum="${escapeHtml(naechsterTermin.datum)}" data-fahrer="${escapeHtml(pl.fahrer||'')}"><span class="dot"></span>Nächster Service: ${escapeHtml(combinedDatumZeit(naechsterTermin.datum, naechsterTermin.zeit))}</button>`
+    ? `<button type="button" class="chip warn chip-clickable" id="chip-tagestour" data-datum="${escapeHtml(naechsterTermin.datum)}" data-fahrer="${escapeHtml((k.planung && k.planung.fahrer) || '')}"><span class="dot"></span>Nächster Service: ${escapeHtml(combinedDatumZeit(naechsterTermin.datum, naechsterTermin.zeit))}</button>`
     : `<span class="chip ok"><span class="dot"></span>Kein Termin geplant</span>`;
 
   const backBtn = `<button class="back-btn" onclick="document.getElementById('results-panel').classList.remove('hidden-mobile')">&larr; Zur Suche</button>`;
