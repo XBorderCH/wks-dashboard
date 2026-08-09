@@ -139,6 +139,102 @@ app.get('/api/tage', requireAuth, (req, res) => {
   res.json({ jahr, tage });
 });
 
+// ---- Routen-Berechnung via Google Directions API ----
+function parseKoordinatenServer(v) {
+  if (!v) return null;
+  const m = String(v).match(/([NS])\s*([\d.]+)\D*([EW])\s*([\d.]+)/i);
+  if (!m) return null;
+  let lat = parseFloat(m[2]);
+  let lon = parseFloat(m[4]);
+  if (/S/i.test(m[1])) lat = -lat;
+  if (/W/i.test(m[3])) lon = -lon;
+  if (isNaN(lat) || isNaN(lon)) return null;
+  return { lat, lon };
+}
+
+// Ruft die Google Directions API auf; bricht die Punkteliste in Blöcke, falls
+// mehr Stopps als in einer einzelnen Anfrage erlaubt sind (Google-Limit: 25 Punkte/Anfrage).
+async function berechneRoute(punkte, apiKey) {
+  const MAX_PUNKTE_PRO_ANFRAGE = 23; // inkl. Start/Ziel, konservativ gewählt
+  let gesamtMeter = 0;
+  let gesamtSekunden = 0;
+
+  let start = 0;
+  while (start < punkte.length - 1) {
+    const ende = Math.min(start + MAX_PUNKTE_PRO_ANFRAGE - 1, punkte.length - 1);
+    const chunk = punkte.slice(start, ende + 1);
+
+    const origin = `${chunk[0].lat},${chunk[0].lon}`;
+    const destination = `${chunk[chunk.length - 1].lat},${chunk[chunk.length - 1].lon}`;
+    const waypointsMitte = chunk.slice(1, -1).map((p) => `${p.lat},${p.lon}`).join('|');
+
+    const url = new URL('https://maps.googleapis.com/maps/api/directions/json');
+    url.searchParams.set('origin', origin);
+    url.searchParams.set('destination', destination);
+    if (waypointsMitte) url.searchParams.set('waypoints', waypointsMitte);
+    url.searchParams.set('region', 'ch');
+    url.searchParams.set('key', apiKey);
+
+    const r = await fetch(url.toString());
+    const data = await r.json();
+
+    if (data.status !== 'OK') {
+      throw new Error(`Google Directions: ${data.status}${data.error_message ? ' – ' + data.error_message : ''}`);
+    }
+
+    const route = data.routes[0];
+    route.legs.forEach((leg) => {
+      gesamtMeter += leg.distance.value;
+      gesamtSekunden += leg.duration.value;
+    });
+
+    start = ende;
+  }
+
+  return { meter: gesamtMeter, sekunden: gesamtSekunden };
+}
+
+// Fahrstrecke + Fahrzeit für die Tagestour eines Fahrers an einem Datum
+app.get('/api/route/:datum/:fahrer', requireAuth, async (req, res) => {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'GOOGLE_MAPS_API_KEY ist nicht gesetzt.' });
+  }
+
+  const { datum, fahrer } = req.params;
+  const stopps = [];
+  kunden.forEach((k) => {
+    const termin = (k.termine || []).find((t) => t.datum === datum);
+    if (termin && k.planung && k.planung.fahrer === fahrer) {
+      stopps.push({ zeit: termin.zeit || null, koord: parseKoordinatenServer(k.anlage && k.anlage.koordinaten) });
+    }
+  });
+  stopps.sort((a, b) => {
+    const za = a.zeit ? parseInt(String(a.zeit).replace(/\D/g, ''), 10) : Infinity;
+    const zb = b.zeit ? parseInt(String(b.zeit).replace(/\D/g, ''), 10) : Infinity;
+    return za - zb;
+  });
+
+  const punkte = stopps.map((s) => s.koord).filter(Boolean);
+  const fehlendeKoordinaten = stopps.length - punkte.length;
+
+  if (punkte.length < 2) {
+    return res.json({ km: null, dauerMinuten: null, anzahlStopps: stopps.length, fehlendeKoordinaten, hinweis: 'Zu wenige Koordinaten für eine Route.' });
+  }
+
+  try {
+    const { meter, sekunden } = await berechneRoute(punkte, apiKey);
+    res.json({
+      km: Math.round((meter / 1000) * 10) / 10,
+      dauerMinuten: Math.round(sekunden / 60),
+      anzahlStopps: stopps.length,
+      fehlendeKoordinaten,
+    });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ anzahl: kunden.length });
 });

@@ -223,6 +223,12 @@
     font-size:14px;color:var(--ink-soft);
   }
   .tage-summary strong{color:var(--ink);font-weight:700;}
+  .route-summary{
+    margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
+    font-size:14px;color:var(--ink-soft);
+  }
+  .route-summary strong{color:var(--ink);font-weight:700;}
+  .route-hinweis{font-size:12px;}
   .tage-item{
     display:grid;grid-template-columns:1fr 60px 76px;align-items:center;gap:10px;
     padding:11px 10px;border-radius:8px;cursor:pointer;
@@ -830,6 +836,37 @@ function kvLink(label, value, href, mono){
   return `<div class="kv"><span class="k">${escapeHtml(label)}</span><a class="v link${mono?' mono':''}" href="${href}" target="_blank" rel="noopener">${escapeHtml(value)}</a></div>`;
 }
 
+async function ladeRoute(datum, fahrer){
+  const rs = document.getElementById('route-summary');
+  if(!rs) return;
+  try{
+    const r = await fetch('/api/route/' + encodeURIComponent(datum) + '/' + encodeURIComponent(fahrer));
+    const d = await r.json();
+    const rsAktuell = document.getElementById('route-summary');
+    if(!rsAktuell) return; // Modal inzwischen geschlossen/gewechselt
+
+    if(d.error){
+      rsAktuell.innerHTML = `Route konnte nicht berechnet werden (${escapeHtml(d.error)})`;
+      return;
+    }
+    if(d.km === null){
+      rsAktuell.innerHTML = d.hinweis ? escapeHtml(d.hinweis) : 'Route nicht verfügbar.';
+      return;
+    }
+    const std = Math.floor(d.dauerMinuten / 60);
+    const min = d.dauerMinuten % 60;
+    const dauerText = std > 0 ? `${std} Std ${min} Min` : `${min} Min`;
+    let text = `Fahrstrecke: <strong>${d.km.toLocaleString('de-CH')} km</strong> · Fahrzeit: <strong>${dauerText}</strong>`;
+    if(d.fehlendeKoordinaten > 0){
+      text += ` <span class="route-hinweis">(${d.fehlendeKoordinaten} Stopp${d.fehlendeKoordinaten>1?'s':''} ohne Koordinaten nicht berücksichtigt)</span>`;
+    }
+    rsAktuell.innerHTML = text;
+  }catch(err){
+    const rsAktuell = document.getElementById('route-summary');
+    if(rsAktuell) rsAktuell.innerHTML = 'Route konnte nicht berechnet werden.';
+  }
+}
+
 async function openTagestour(datum, fahrer){
   const overlay = $('#tagestour-overlay');
   $('#tagestour-title').textContent = 'Tagestour · ' + datum + (fahrer ? ' · ' + fahrer : '');
@@ -861,13 +898,20 @@ async function openTagestour(datum, fahrer){
           ${isSelf ? '<span class="tour-badge">Aktuell</span>' : ''}
         </div>
       `;
-    }).join('');
+    }).join('') + '<div class="route-summary" id="route-summary">Route wird berechnet…</div>';
     $('#tagestour-body').querySelectorAll('.tour-item').forEach(el => {
       el.addEventListener('click', () => {
         closeTagestour();
         openKunde(el.dataset.kdnr);
       });
     });
+
+    if(fahrer){
+      ladeRoute(datum, fahrer);
+    } else {
+      const rs = document.getElementById('route-summary');
+      if(rs) rs.remove();
+    }
   }catch(err){
     $('#tagestour-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
   }
