@@ -218,6 +218,11 @@
     font-size:11px;text-transform:uppercase;letter-spacing:0.05em;font-weight:600;
     color:var(--ink-soft);padding:14px 10px 6px;
   }
+  .tage-summary{
+    margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
+    font-size:14px;color:var(--ink-soft);
+  }
+  .tage-summary strong{color:var(--ink);font-weight:700;}
   .tage-item{
     display:grid;grid-template-columns:1fr 60px 76px;align-items:center;gap:10px;
     padding:11px 10px;border-radius:8px;cursor:pointer;
@@ -943,6 +948,8 @@ async function openEinsatztage(){
     if(vergangen.length){
       html += `<div class="tage-section-title">Vergangen (${d.jahr})</div>` + vergangen.map(renderTag).join('');
     }
+    const totalServicetage = tage.reduce((sum, t) => sum + (t.ralph > 0 ? 1 : 0) + (t.kathrin > 0 ? 1 : 0), 0);
+    html += `<div class="tage-summary">Total Servicetage ${d.jahr}: <strong>${totalServicetage}</strong></div>`;
     $('#tage-body').innerHTML = html;
 
     $('#tage-body').querySelectorAll('.tage-item').forEach(el => {
