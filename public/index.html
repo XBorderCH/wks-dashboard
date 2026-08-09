@@ -58,13 +58,14 @@
     margin-bottom:28px;
   }
   .brand-mark{
-    width:34px;height:34px;
+    width:36px;height:36px;
     border-radius:8px;
-    background:var(--accent);
+    background:var(--accent-soft);
     display:flex;align-items:center;justify-content:center;
-    color:#fff;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;
     flex:none;
+    padding:5px;
   }
+  .brand-mark img{width:100%;height:100%;object-fit:contain;display:block;}
   .brand-text{font-weight:600;font-size:16px;letter-spacing:-0.01em;}
   .login-card label{
     display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:500;
@@ -271,7 +272,7 @@
 <div id="login-screen">
   <div class="login-card">
     <div class="brand">
-      <div class="brand-mark">KD</div>
+      <div class="brand-mark"><img src="/tropfen-icon.png" alt="WKS" /></div>
       <div class="brand-text">Kundendatenbank</div>
     </div>
     <form id="login-form">
@@ -286,7 +287,7 @@
 <div id="app">
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark">KD</div>
+      <div class="brand-mark"><img src="/tropfen-icon.png" alt="WKS" /></div>
     </div>
     <div class="search-wrap">
       <span class="icon">&#9906;</span>
