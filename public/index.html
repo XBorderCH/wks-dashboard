@@ -235,6 +235,22 @@
   }
   .route-summary strong{color:var(--ink);font-weight:700;}
   .route-hinweis{font-size:12px;}
+  .fahrzeit-connector{
+    display:flex;align-items:center;gap:8px;padding:2px 14px;
+  }
+  .fahrzeit-linie{flex:1;height:1px;background:var(--line);}
+  .fahrzeit-label{
+    font-size:11px;color:var(--ink-soft);white-space:nowrap;font-weight:500;
+  }
+  .herisau-row{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;
+    background:var(--bg);border-radius:8px;margin:2px 0;
+  }
+  .herisau-zeit{
+    font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13px;color:var(--accent-ink);
+    min-width:44px;
+  }
+  .herisau-label{font-size:13.5px;font-weight:500;color:var(--ink);}
   .tage-item{
     display:grid;grid-template-columns:1fr 60px 76px;align-items:center;gap:10px;
     padding:11px 10px;border-radius:8px;cursor:pointer;
@@ -870,6 +886,46 @@ async function ladeRoute(datum, fahrer){
       text += ` <span class="route-hinweis">(${d.fehlendeKoordinaten} Stopp${d.fehlendeKoordinaten>1?'s':''} ohne Koordinaten nicht berücksichtigt)</span>`;
     }
     rsAktuell.innerHTML = text;
+
+    // Fahrzeiten zwischen den Kunden als Verbindungszeilen einfügen, plus Herisau-Abfahrt/Ankunft
+    if(d.etappen && d.etappen.length){
+      const listEl = rsAktuell.parentElement;
+      if(listEl){
+        d.etappen.forEach(e => {
+          const connector = document.createElement('div');
+          connector.className = 'fahrzeit-connector';
+          connector.innerHTML = `<span class="fahrzeit-linie"></span><span class="fahrzeit-label">${e.minuten} Min Fahrzeit</span><span class="fahrzeit-linie"></span>`;
+
+          if(e.vonKdnr === null){
+            // Abfahrt Herisau vor dem ersten Kunden
+            const zielEl = listEl.querySelector(`.tour-item[data-kdnr="${CSS.escape(e.nachKdnr)}"]`);
+            if(zielEl){
+              const herisauRow = document.createElement('div');
+              herisauRow.className = 'herisau-row';
+              herisauRow.innerHTML = `<span class="herisau-zeit">${d.abfahrtHerisau ? escapeHtml(d.abfahrtHerisau) : ''}</span><span class="herisau-label">Abfahrt Herisau</span>`;
+              zielEl.parentElement.insertBefore(herisauRow, zielEl);
+              zielEl.parentElement.insertBefore(connector, zielEl);
+            }
+          } else if(e.nachKdnr === null){
+            // Ankunft Herisau nach dem letzten Kunden
+            const vonEl = listEl.querySelector(`.tour-item[data-kdnr="${CSS.escape(e.vonKdnr)}"]`);
+            if(vonEl){
+              const herisauRow = document.createElement('div');
+              herisauRow.className = 'herisau-row';
+              herisauRow.innerHTML = `<span class="herisau-zeit">${d.ankunftHerisau ? escapeHtml(d.ankunftHerisau) : ''}</span><span class="herisau-label">Ankunft Herisau</span>`;
+              vonEl.insertAdjacentElement('afterend', connector);
+              connector.insertAdjacentElement('afterend', herisauRow);
+            }
+          } else {
+            // Verbindung zwischen zwei Kunden
+            const vonEl = listEl.querySelector(`.tour-item[data-kdnr="${CSS.escape(e.vonKdnr)}"]`);
+            if(vonEl){
+              vonEl.insertAdjacentElement('afterend', connector);
+            }
+          }
+        });
+      }
+    }
   }catch(err){
     const rsAktuell = document.getElementById('route-summary');
     if(rsAktuell) rsAktuell.innerHTML = 'Route konnte nicht berechnet werden.';

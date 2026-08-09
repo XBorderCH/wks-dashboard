@@ -200,10 +200,12 @@ async function rufeDirectionsAuf(chunk, apiKey, nutzeAdresse) {
 // mehr Stopps als in einer einzelnen Anfrage erlaubt sind (Google-Limit: 25 Punkte/Anfrage).
 // Bei ZERO_RESULTS wird der betroffene Block automatisch nochmal mit den Postadressen
 // statt den rohen Koordinaten versucht (Google findet dann selbst den nächsten befahrbaren Punkt).
+// Gibt neben der Summe auch die einzelnen Etappen (in Reihenfolge der Punkteliste) zurück.
 async function berechneRoute(punkte, apiKey) {
   const MAX_PUNKTE_PRO_ANFRAGE = 23; // inkl. Start/Ziel, konservativ gewählt
   let gesamtMeter = 0;
   let gesamtSekunden = 0;
+  const etappen = []; // { meter, sekunden } pro Teilstrecke, in Reihenfolge der Punkteliste
 
   let start = 0;
   while (start < punkte.length - 1) {
@@ -224,12 +226,13 @@ async function berechneRoute(punkte, apiKey) {
     route.legs.forEach((leg) => {
       gesamtMeter += leg.distance.value;
       gesamtSekunden += leg.duration.value;
+      etappen.push({ meter: leg.distance.value, sekunden: leg.duration.value });
     });
 
     start = ende;
   }
 
-  return { meter: gesamtMeter, sekunden: gesamtSekunden };
+  return { meter: gesamtMeter, sekunden: gesamtSekunden, etappen };
 }
 
 // Alle Tage (als Timestamp um Mitternacht), an denen ein bestimmter Fahrer mindestens einen Termin hat
@@ -280,6 +283,9 @@ function ermittleRoutenPunkte(datum, fahrer) {
         const a = k.anlage || {};
         const adresseText = [a.adresse, [a.plz, a.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
         if (adresseText) koord.adresse = adresseText + ', Schweiz';
+        koord.kdnr = k.kdnr;
+        koord.name = k.kdnrName;
+        koord.dauer = k.anlage ? parseInt(k.anlage.dauer, 10) || 0 : 0;
       }
       stopps.push({ zeit: termin.zeit || null, koord });
     }
@@ -290,31 +296,48 @@ function ermittleRoutenPunkte(datum, fahrer) {
     return za - zb;
   });
 
-  const kundenPunkte = stopps.map((s) => s.koord).filter(Boolean);
+  const kundenPunkte = stopps
+    .filter((s) => s.koord)
+    .map((s) => ({ ...s.koord, zeit: s.zeit }));
   const fehlendeKoordinaten = stopps.length - kundenPunkte.length;
+
+  const HERISAU_PUNKT = BASIS_KOORDINATE ? { ...BASIS_KOORDINATE, kdnr: null, name: 'Herisau' } : null;
 
   let punkte = kundenPunkte;
   let basisHinweis = null;
-  if (BASIS_KOORDINATE && kundenPunkte.length) {
+  if (HERISAU_PUNKT && kundenPunkte.length) {
     if (fahrer === 'Kathrin') {
-      punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
+      punkte = [HERISAU_PUNKT, ...kundenPunkte, { ...HERISAU_PUNKT }];
       basisHinweis = 'Abfahrt/Ankunft Herisau';
     } else if (fahrer === 'Ralph') {
       const kette = findeKette(datum, alleArbeitstage('Ralph'));
       if (!kette || kette.laenge <= 1) {
-        punkte = [BASIS_KOORDINATE, ...kundenPunkte, BASIS_KOORDINATE];
+        punkte = [HERISAU_PUNKT, ...kundenPunkte, { ...HERISAU_PUNKT }];
         basisHinweis = 'Abfahrt/Ankunft Herisau';
       } else if (kette.istErsterTag) {
-        punkte = [BASIS_KOORDINATE, ...kundenPunkte];
+        punkte = [HERISAU_PUNKT, ...kundenPunkte];
         basisHinweis = 'Abfahrt Herisau';
       } else if (kette.istLetzterTag) {
-        punkte = [...kundenPunkte, BASIS_KOORDINATE];
+        punkte = [...kundenPunkte, { ...HERISAU_PUNKT }];
         basisHinweis = 'Ankunft Herisau';
       }
     }
   }
 
   return { punkte, anzahlStopps: stopps.length, fehlendeKoordinaten, basisHinweis };
+}
+
+function zeitStringZuMinuten(zeit) {
+  if (!zeit) return null;
+  const digits = String(zeit).replace(/\D/g, '').padStart(4, '0');
+  return parseInt(digits.slice(0, 2), 10) * 60 + parseInt(digits.slice(2, 4), 10);
+}
+
+function minutenZuZeitString(min) {
+  const gesamt = ((Math.round(min) % 1440) + 1440) % 1440; // auf 0-1439 normalisieren (Tagesgrenze)
+  const hh = String(Math.floor(gesamt / 60)).padStart(2, '0');
+  const mm = String(gesamt % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 async function holeRouteFuerTag(datum, fahrer, apiKey) {
@@ -328,13 +351,47 @@ async function holeRouteFuerTag(datum, fahrer, apiKey) {
     ergebnis = { km: null, dauerMinuten: null, anzahlStopps, fehlendeKoordinaten, hinweis: 'Zu wenige Koordinaten für eine Route.' };
   } else {
     try {
-      const { meter, sekunden } = await berechneRoute(punkte, apiKey);
+      const { meter, sekunden, etappen } = await berechneRoute(punkte, apiKey);
+
+      // Etappen mit Von/Nach-Bezeichnung anreichern (für Anzeige zwischen den Kunden)
+      const etappenBeschriftet = etappen.map((e, i) => ({
+        von: punkte[i].name,
+        vonKdnr: punkte[i].kdnr,
+        nach: punkte[i + 1].name,
+        nachKdnr: punkte[i + 1].kdnr,
+        minuten: Math.round(e.sekunden / 60),
+      }));
+
+      // Abfahrtszeit Herisau (falls erster Punkt Herisau ist): Ankunftszeit beim ersten
+      // Kunden minus Fahrzeit dorthin.
+      let abfahrtHerisau = null;
+      if (punkte[0].name === 'Herisau' && punkte[1]) {
+        const zielMin = zeitStringZuMinuten(punkte[1].zeit);
+        if (zielMin !== null) abfahrtHerisau = minutenZuZeitString(zielMin - etappenBeschriftet[0].minuten);
+      }
+
+      // Ankunftszeit Herisau (falls letzter Punkt Herisau ist): Ankunftszeit beim letzten
+      // Kunden plus dessen Aufenthaltsdauer plus Fahrzeit nach Herisau.
+      let ankunftHerisau = null;
+      const letzterIndex = punkte.length - 1;
+      if (punkte[letzterIndex].name === 'Herisau' && punkte[letzterIndex - 1]) {
+        const letzterKunde = punkte[letzterIndex - 1];
+        const startMin = zeitStringZuMinuten(letzterKunde.zeit);
+        if (startMin !== null) {
+          const letzteEtappe = etappenBeschriftet[etappenBeschriftet.length - 1];
+          ankunftHerisau = minutenZuZeitString(startMin + (letzterKunde.dauer || 0) + letzteEtappe.minuten);
+        }
+      }
+
       ergebnis = {
         km: Math.round((meter / 1000) * 10) / 10,
         dauerMinuten: Math.round(sekunden / 60),
         anzahlStopps,
         fehlendeKoordinaten,
         basisHinweis,
+        etappen: etappenBeschriftet,
+        abfahrtHerisau,
+        ankunftHerisau,
       };
     } catch (err) {
       ergebnis = { fehler: err.message, anzahlStopps, fehlendeKoordinaten };
