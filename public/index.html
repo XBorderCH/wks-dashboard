@@ -218,20 +218,20 @@
     color:var(--ink-soft);padding:14px 10px 6px;
   }
   .tage-item{
-    display:grid;grid-template-columns:1fr 44px 76px;align-items:center;gap:10px;
+    display:grid;grid-template-columns:1fr 60px 76px;align-items:center;gap:10px;
     padding:11px 10px;border-radius:8px;cursor:pointer;
   }
   .tage-item:hover{background:var(--bg);}
   .tage-item .tage-datum{font-size:14.5px;font-weight:500;}
   .tage-item .tage-count{font-size:12px;color:var(--ink-soft);text-align:right;}
-  .tage-item .tage-fahrer{
-    font-size:11px;font-weight:600;
-    padding:2px 8px;border-radius:20px;flex:none;
-    justify-self:start;
-    background:#EEF1EF;color:var(--ink-soft);
+  .tage-fahrer-group{display:flex;gap:5px;justify-self:start;}
+  .tage-fahrer{
+    width:22px;height:22px;flex:none;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:700;border-radius:50%;
   }
-  .tage-item .tage-fahrer.r{background:#E4EBFB;color:#2A4BA0;}
-  .tage-item .tage-fahrer.k{background:#E1F0EA;color:#1D7A50;}
+  .tage-fahrer.r{background:#E4EBFB;color:#2A4BA0;}
+  .tage-fahrer.k{background:#E1F0EA;color:#1D7A50;}
   .fahrer-choice{display:flex;gap:10px;padding:14px 10px;}
   .fahrer-btn{
     flex:1;padding:14px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
@@ -918,13 +918,14 @@ async function openEinsatztage(){
     const renderTag = (t) => {
       const hatRalph = t.ralph > 0;
       const hatKathrin = t.kathrin > 0;
-      const beide = hatKathrin && hatRalph;
-      const fahrerLabel = beide ? 'K / R' : (hatKathrin ? 'K' : (hatRalph ? 'R' : ''));
-      const fahrerClass = beide ? '' : (hatKathrin ? 'k' : (hatRalph ? 'r' : ''));
+      const badges = [
+        hatKathrin ? '<span class="tage-fahrer k">K</span>' : '',
+        hatRalph ? '<span class="tage-fahrer r">R</span>' : '',
+      ].join('');
       return `
         <div class="tage-item" data-datum="${escapeHtml(t.datum)}" data-ralph="${hatRalph ? 1 : 0}" data-kathrin="${hatKathrin ? 1 : 0}">
           <span class="tage-datum">${escapeHtml(t.datum)}</span>
-          ${fahrerLabel ? `<span class="tage-fahrer ${fahrerClass}">${fahrerLabel}</span>` : '<span></span>'}
+          <span class="tage-fahrer-group">${badges}</span>
           <span class="tage-count">${t.ralph + t.kathrin + t.sonst} Kunden</span>
         </div>
       `;
