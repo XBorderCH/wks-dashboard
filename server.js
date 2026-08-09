@@ -166,8 +166,34 @@ function parseDMS(str) {
 // Betriebsstandort (Ausgangs-/Endpunkt der Touren)
 const BASIS_KOORDINATE = parseDMS(`47°23'56.2"N 9°17'28.2"E`);
 
+// Baut den Anfrage-Parameter für einen Punkt: normalerweise Koordinaten,
+// im Fallback-Modus die Postadresse (falls vorhanden), damit Google selbst
+// den nächstgelegenen befahrbaren Punkt sucht.
+function punktParam(p, nutzeAdresse) {
+  if (nutzeAdresse && p.adresse) return p.adresse;
+  return `${p.lat},${p.lon}`;
+}
+
+async function rufeDirectionsAuf(chunk, apiKey, nutzeAdresse) {
+  const origin = punktParam(chunk[0], nutzeAdresse);
+  const destination = punktParam(chunk[chunk.length - 1], nutzeAdresse);
+  const waypointsMitte = chunk.slice(1, -1).map((p) => punktParam(p, nutzeAdresse)).join('|');
+
+  const url = new URL('https://maps.googleapis.com/maps/api/directions/json');
+  url.searchParams.set('origin', origin);
+  url.searchParams.set('destination', destination);
+  if (waypointsMitte) url.searchParams.set('waypoints', waypointsMitte);
+  url.searchParams.set('region', 'ch');
+  url.searchParams.set('key', apiKey);
+
+  const r = await fetch(url.toString());
+  return r.json();
+}
+
 // Ruft die Google Directions API auf; bricht die Punkteliste in Blöcke, falls
 // mehr Stopps als in einer einzelnen Anfrage erlaubt sind (Google-Limit: 25 Punkte/Anfrage).
+// Bei ZERO_RESULTS wird der betroffene Block automatisch nochmal mit den Postadressen
+// statt den rohen Koordinaten versucht (Google findet dann selbst den nächsten befahrbaren Punkt).
 async function berechneRoute(punkte, apiKey) {
   const MAX_PUNKTE_PRO_ANFRAGE = 23; // inkl. Start/Ziel, konservativ gewählt
   let gesamtMeter = 0;
@@ -178,19 +204,11 @@ async function berechneRoute(punkte, apiKey) {
     const ende = Math.min(start + MAX_PUNKTE_PRO_ANFRAGE - 1, punkte.length - 1);
     const chunk = punkte.slice(start, ende + 1);
 
-    const origin = `${chunk[0].lat},${chunk[0].lon}`;
-    const destination = `${chunk[chunk.length - 1].lat},${chunk[chunk.length - 1].lon}`;
-    const waypointsMitte = chunk.slice(1, -1).map((p) => `${p.lat},${p.lon}`).join('|');
+    let data = await rufeDirectionsAuf(chunk, apiKey, false);
 
-    const url = new URL('https://maps.googleapis.com/maps/api/directions/json');
-    url.searchParams.set('origin', origin);
-    url.searchParams.set('destination', destination);
-    if (waypointsMitte) url.searchParams.set('waypoints', waypointsMitte);
-    url.searchParams.set('region', 'ch');
-    url.searchParams.set('key', apiKey);
-
-    const r = await fetch(url.toString());
-    const data = await r.json();
+    if (data.status === 'ZERO_RESULTS' && chunk.some((p) => p.adresse)) {
+      data = await rufeDirectionsAuf(chunk, apiKey, true);
+    }
 
     if (data.status !== 'OK') {
       throw new Error(`Google Directions: ${data.status}${data.error_message ? ' – ' + data.error_message : ''}`);
@@ -249,7 +267,13 @@ function ermittleRoutenPunkte(datum, fahrer) {
   kunden.forEach((k) => {
     const termin = (k.termine || []).find((t) => t.datum === datum);
     if (termin && k.planung && k.planung.fahrer === fahrer) {
-      stopps.push({ zeit: termin.zeit || null, koord: parseKoordinatenServer(k.anlage && k.anlage.koordinaten) });
+      const koord = parseKoordinatenServer(k.anlage && k.anlage.koordinaten);
+      if (koord) {
+        const a = k.anlage || {};
+        const adresseText = [a.adresse, [a.plz, a.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+        if (adresseText) koord.adresse = adresseText + ', Schweiz';
+      }
+      stopps.push({ zeit: termin.zeit || null, koord });
     }
   });
   stopps.sort((a, b) => {
