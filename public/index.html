@@ -317,6 +317,27 @@
   .timeline .tdot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;}
   .timeline .tlabel{color:var(--ink-soft);flex:1;}
   .timeline .tval{font-family:'IBM Plex Mono',monospace;font-weight:500;}
+  .timeline li.hat-analyse{cursor:pointer;}
+  .timeline li.hat-analyse:hover{background:var(--bg);}
+  .analyse-chevron{
+    color:var(--accent-ink);font-size:11px;flex:none;transition:transform 0.15s;
+    display:inline-block;
+  }
+  .timeline li.analyse-offen .analyse-chevron{transform:rotate(180deg);}
+  .analyse-detail-row{
+    display:block;padding:0 0 10px 19px !important;border-bottom:1px solid #F0F3F1;
+  }
+  .analyse-detail-row:last-child{border-bottom:none;}
+  .analyse-detail{background:var(--bg);border-radius:8px;padding:12px 14px;}
+  .analyse-detail .kv{font-size:13.5px;}
+  .analyse-messwerte{
+    display:grid;grid-template-columns:repeat(auto-fill, minmax(90px,1fr));gap:8px;
+    margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+  }
+  .messwert{display:flex;flex-direction:column;gap:2px;}
+  .mw-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-soft);}
+  .mw-wert{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;}
+  .analyse-detail .remark{font-size:13px;padding:8px 0;}
 
   table.fee-table{width:100%;border-collapse:collapse;font-size:13.5px;}
   table.fee-table th{
@@ -776,11 +797,39 @@ function renderDetail(k){
   });
   termine.sort((a,b) => (a.jahr + (a.halbjahr||'0')).localeCompare(b.jahr + (b.halbjahr||'0')));
   termine.reverse();
+  const analysedatenByDatum = {};
+  (k.analysedaten || []).forEach(a => { analysedatenByDatum[a.datum] = a; });
+
+  function renderAnalyseDetail(a){
+    const zeilen = [];
+    if(a.geruch) zeilen.push(['Geruch', a.geruch]);
+    if(a.farbe) zeilen.push(['Farbe', a.farbe]);
+    if(a.schlammAblauf) zeilen.push(['Schlamm Ablauf', a.schlammAblauf]);
+    if(a.handlungsbedarf) zeilen.push(['Handlungsbedarf', a.handlungsbedarf]);
+
+    const messwerte = [...(a.messwerteImmer||[]), ...(a.messwerteOptional||[])];
+
+    return `
+      <div class="analyse-detail">
+        ${zeilen.map(([l,v]) => `<div class="kv"><span class="k">${escapeHtml(l)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')}
+        ${messwerte.length ? `<div class="analyse-messwerte">
+          ${messwerte.map(m => `<div class="messwert"><span class="mw-label">${escapeHtml(m.label)}</span><span class="mw-wert">${escapeHtml(m.wert)}</span></div>`).join('')}
+        </div>` : ''}
+        ${(a.bemerkungen||[]).map(b => `<div class="remark"><div class="rlabel">${escapeHtml(b.label)}</div>${escapeHtml(b.wert)}</div>`).join('')}
+      </div>
+    `;
+  }
+
   const termineCard = `
     <div class="card">
       <h3>Service-Termine</h3>
       ${termine.length ? `<ul class="timeline">
-        ${termine.map(t => `<li><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span></li>`).join('')}
+        ${termine.map((t,i) => {
+          const analyse = t.datum ? analysedatenByDatum[t.datum] : null;
+          const zeile = `<li class="${analyse ? 'hat-analyse' : ''}" ${analyse ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span>${analyse ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
+          const detail = analyse ? `<li class="analyse-detail-row" id="analyse-detail-${i}" style="display:none;">${renderAnalyseDetail(analyse)}</li>` : '';
+          return zeile + detail;
+        }).join('')}
       </ul>` : '<div class="kv"><span class="k">Keine Termine erfasst</span></div>'}
     </div>
   `;
@@ -845,6 +894,17 @@ function renderDetail(k){
       openTagestour(tagestourBtn.dataset.datum, tagestourBtn.dataset.fahrer);
     });
   }
+
+  document.querySelectorAll('.hat-analyse').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = el.dataset.analyseIdx;
+      const detailRow = document.getElementById('analyse-detail-' + idx);
+      if(!detailRow) return;
+      const offen = detailRow.style.display !== 'none';
+      detailRow.style.display = offen ? 'none' : '';
+      el.classList.toggle('analyse-offen', !offen);
+    });
+  });
 }
 
 function kv(label, value, mono){
