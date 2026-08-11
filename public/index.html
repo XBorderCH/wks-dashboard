@@ -326,8 +326,11 @@
     display:inline-block;
   }
   .timeline li.analyse-offen .analyse-chevron{transform:rotate(180deg);}
-  .analyse-detail-row{
-    display:block !important;width:100%;box-sizing:border-box;padding:0 0 10px 0 !important;border-bottom:1px solid #F0F3F1;
+  .timeline li.analyse-detail-row{
+    display:none;width:100%;box-sizing:border-box;padding:0 0 10px 0;border-bottom:1px solid #F0F3F1;
+  }
+  .timeline li.analyse-detail-row.analyse-open{
+    display:block;
   }
   .analyse-detail-row:last-child{border-bottom:none;}
   .analyse-detail{background:var(--bg);border-radius:8px;padding:14px 16px;width:100%;box-sizing:border-box;}
@@ -830,7 +833,7 @@ function renderDetail(k){
         ${termine.map((t,i) => {
           const analyse = t.datum ? analysedatenByDatum[t.datum] : null;
           const zeile = `<li class="${analyse ? 'hat-analyse' : ''}" ${analyse ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span>${analyse ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
-          const detail = analyse ? `<li class="analyse-detail-row" id="analyse-detail-${i}" style="display:none;">${renderAnalyseDetail(analyse)}</li>` : '';
+          const detail = analyse ? `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse)}</li>` : '';
           return zeile + detail;
         }).join('')}
       </ul>` : '<div class="kv"><span class="k">Keine Termine erfasst</span></div>'}
@@ -903,8 +906,8 @@ function renderDetail(k){
       const idx = el.dataset.analyseIdx;
       const detailRow = document.getElementById('analyse-detail-' + idx);
       if(!detailRow) return;
-      const offen = detailRow.style.display !== 'none';
-      detailRow.style.display = offen ? 'none' : '';
+      const offen = detailRow.classList.contains('analyse-open');
+      detailRow.classList.toggle('analyse-open', !offen);
       el.classList.toggle('analyse-offen', !offen);
     });
   });
