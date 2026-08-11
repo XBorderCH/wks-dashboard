@@ -330,15 +330,11 @@
     display:block;padding:0 0 10px 19px !important;border-bottom:1px solid #F0F3F1;
   }
   .analyse-detail-row:last-child{border-bottom:none;}
-  .analyse-detail{background:var(--bg);border-radius:8px;padding:12px 14px;}
-  .analyse-detail .kv{font-size:13.5px;}
+  .analyse-detail{background:var(--bg);border-radius:8px;padding:14px 16px;}
+  .analyse-detail .kv{font-size:14px;padding:8px 0;}
   .analyse-messwerte{
-    display:grid;grid-template-columns:repeat(auto-fill, minmax(90px,1fr));gap:8px;
-    margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+    margin-top:4px;padding-top:4px;border-top:1px solid var(--line);
   }
-  .messwert{display:flex;flex-direction:column;gap:2px;}
-  .mw-label{font-size:10.5px;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-soft);}
-  .mw-wert{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;}
   .analyse-detail .remark{font-size:13px;padding:8px 0;}
 
   table.fee-table{width:100%;border-collapse:collapse;font-size:13.5px;}
@@ -809,15 +805,18 @@ function renderDetail(k){
     if(a.schlammAblauf) zeilen.push(['Schlamm Ablauf', a.schlammAblauf]);
     if(a.handlungsbedarf) zeilen.push(['Handlungsbedarf', a.handlungsbedarf]);
 
-    const AUSBLENDEN_WENN_STRICH = ['Bewuchs', 'O2 BB', 'Temp', 'Stunden', 'Nitrit'];
-    const messwerte = [...(a.messwerteImmer||[]), ...(a.messwerteOptional||[])]
-      .filter(m => !(AUSBLENDEN_WENN_STRICH.includes(m.label) && m.wert === '-'));
+    // Immer angezeigte Kernwerte bleiben immer sichtbar (auch "k.A."); bei den optionalen
+    // Messwerten wird ein reiner "-"-Eintrag komplett weggelassen.
+    const messwerte = [
+      ...(a.messwerteImmer || []),
+      ...(a.messwerteOptional || []).filter(m => m.wert !== '-'),
+    ];
 
     return `
       <div class="analyse-detail">
         ${zeilen.map(([l,v]) => `<div class="kv"><span class="k">${escapeHtml(l)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')}
         ${messwerte.length ? `<div class="analyse-messwerte">
-          ${messwerte.map(m => `<div class="messwert"><span class="mw-label">${escapeHtml(m.label)}</span><span class="mw-wert">${escapeHtml(m.wert)}</span></div>`).join('')}
+          ${messwerte.map(m => `<div class="kv"><span class="k">${escapeHtml(m.label)}</span><span class="v mono">${escapeHtml(m.wert)}</span></div>`).join('')}
         </div>` : ''}
         ${(a.bemerkungen||[]).map(b => `<div class="remark"><div class="rlabel">${escapeHtml(b.label)}</div>${escapeHtml(b.wert)}</div>`).join('')}
       </div>
