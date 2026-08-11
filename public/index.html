@@ -318,6 +318,8 @@
   .timeline .tlabel{color:var(--ink-soft);flex:1;}
   .timeline .tval{font-family:'IBM Plex Mono',monospace;font-weight:500;}
   .timeline li.hat-analyse{cursor:pointer;}
+  .timeline li.hat-analyse .tlabel,
+  .timeline li.hat-analyse .tval{font-weight:700;color:var(--ink);}
   .timeline li.hat-analyse:hover{background:var(--bg);}
   .analyse-chevron{
     color:var(--accent-ink);font-size:11px;flex:none;transition:transform 0.15s;
@@ -807,7 +809,9 @@ function renderDetail(k){
     if(a.schlammAblauf) zeilen.push(['Schlamm Ablauf', a.schlammAblauf]);
     if(a.handlungsbedarf) zeilen.push(['Handlungsbedarf', a.handlungsbedarf]);
 
-    const messwerte = [...(a.messwerteImmer||[]), ...(a.messwerteOptional||[])];
+    const AUSBLENDEN_WENN_STRICH = ['Bewuchs', 'O2 BB', 'Temp', 'Stunden', 'Nitrit'];
+    const messwerte = [...(a.messwerteImmer||[]), ...(a.messwerteOptional||[])]
+      .filter(m => !(AUSBLENDEN_WENN_STRICH.includes(m.label) && m.wert === '-'));
 
     return `
       <div class="analyse-detail">

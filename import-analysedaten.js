@@ -23,15 +23,33 @@ const wb = XLSX.readFile(inputPath, { cellDates: true });
 const sheetName = wb.SheetNames[0];
 const sheet = wb.Sheets[sheetName];
 
-// Header steht in Zeile 1, Daten ab Zeile 2 (0-basiert: Header-Row = 0)
 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
-const header = rows[0];
 
-// Hilfsfunktion: Spaltenbuchstabe -> 0-basierter Index
+// Es gibt zwei bekannte Layouts dieser Analysedaten-Datei:
+// "alt": mit Kopfzeile, KdNr in Spalte D, Dat_S in Spalte S, Geruch-Block ab Spalte U
+// "neu": ohne Kopfzeile, KdNr in Spalte A, Dat_S in Spalte L, Geruch-Block ab Spalte N
+//        (7 Spalten weniger vor dem Geruch-Block als im alten Layout)
+function erkenneLayout(rows) {
+  const ersteZeile = rows[0] || [];
+  const moeglicherHeaderWert = String(ersteZeile[3] || '').trim().toLowerCase();
+  if (moeglicherHeaderWert === 'kdnr') return 'alt';
+  return 'neu';
+}
+const layout = erkenneLayout(rows);
+const datenStartIndex = layout === 'alt' ? 1 : 0;
+console.log(`Erkanntes Layout: ${layout === 'alt' ? 'mit Kopfzeile (KdNr Spalte D)' : 'ohne Kopfzeile (KdNr Spalte A)'}`);
+
+// Hilfsfunktion: Spaltenbuchstabe -> 0-basierter Index, layoutabhängig.
+// Ab Spalte GWANr (im alten Layout Spalte J) ist der Versatz zwischen den beiden Layouts
+// konstant 7 Spalten; KdNr und Dat_S liegen im neuen Layout an fixen Sonderpositionen.
 function col(letter) {
   let n = 0;
   for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
-  return n - 1;
+  const idxAlt = n - 1;
+  if (layout === 'alt') return idxAlt;
+  if (letter === 'D') return 0; // KdNr
+  if (letter === 'S') return 11; // Dat_S
+  return idxAlt - 7;
 }
 
 function clean(v) {
@@ -77,7 +95,7 @@ function inhaltsScore(row) {
 
 const eintraegeProKdnrDatum = {}; // key: "kdnr|datum" -> { row, score }
 
-for (let i = 1; i < rows.length; i++) {
+for (let i = datenStartIndex; i < rows.length; i++) {
   const row = rows[i];
   if (!row) continue;
   const kdnr = clean(row[col('D')]);
