@@ -25,31 +25,55 @@ const sheet = wb.Sheets[sheetName];
 
 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
 
-// Es gibt zwei bekannte Layouts dieser Analysedaten-Datei:
-// "alt": mit Kopfzeile, KdNr in Spalte D, Dat_S in Spalte S, Geruch-Block ab Spalte U
-// "neu": ohne Kopfzeile, KdNr in Spalte A, Dat_S in Spalte L, Geruch-Block ab Spalte N
-//        (7 Spalten weniger vor dem Geruch-Block als im alten Layout)
-function erkenneLayout(rows) {
-  const ersteZeile = rows[0] || [];
-  const moeglicherHeaderWert = String(ersteZeile[3] || '').trim().toLowerCase();
-  if (moeglicherHeaderWert === 'kdnr') return 'alt';
-  return 'neu';
+// Verschiedene Excel-Exporte dieser Analysedaten haben leicht unterschiedliche Spaltenlayouts
+// (mal mit Kopfzeile in Zeile 1 oder 2, mal ganz ohne Kopfzeile, mal fehlt eine Spalte dazwischen).
+// Deshalb wird die Kopfzeile per Namenssuche gefunden statt an eine feste Position zu glauben.
+function normalisiere(s) {
+  return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
-const layout = erkenneLayout(rows);
-const datenStartIndex = layout === 'alt' ? 1 : 0;
-console.log(`Erkanntes Layout: ${layout === 'alt' ? 'mit Kopfzeile (KdNr Spalte D)' : 'ohne Kopfzeile (KdNr Spalte A)'}`);
 
-// Hilfsfunktion: Spaltenbuchstabe -> 0-basierter Index, layoutabhängig.
-// Ab Spalte GWANr (im alten Layout Spalte J) ist der Versatz zwischen den beiden Layouts
-// konstant 7 Spalten; KdNr und Dat_S liegen im neuen Layout an fixen Sonderpositionen.
+function findeHeaderZeile(rows) {
+  const maxZeilenZumPruefen = Math.min(rows.length, 10);
+  for (let r = 0; r < maxZeilenZumPruefen; r++) {
+    const zeile = rows[r] || [];
+    const kdnrIdx = zeile.findIndex((v) => normalisiere(v) === 'kdnr');
+    if (kdnrIdx !== -1) return { headerRowIndex: r, kdnrIdx, headerZeile: zeile };
+  }
+  return null;
+}
+
+const headerInfo = findeHeaderZeile(rows);
+
+let layout, datenStartIndex, kdnrColIdx, datSColIdx, geruchOffset;
+
+if (headerInfo) {
+  layout = 'mit Kopfzeile (per Namenssuche erkannt)';
+  datenStartIndex = headerInfo.headerRowIndex + 1;
+  kdnrColIdx = headerInfo.kdnrIdx;
+  const datSIdx = headerInfo.headerZeile.findIndex((v) => normalisiere(v) === 'dat_s');
+  datSColIdx = datSIdx !== -1 ? datSIdx : kdnrColIdx + 15; // Fallback, falls Label mal fehlt
+  // Erste "kein"-Spalte nach Dat_S markiert den Start des Geruch-Blocks
+  const geruchStartIdx = headerInfo.headerZeile.findIndex((v, i) => i > datSColIdx && normalisiere(v) === 'kein');
+  // Kanonische Position von "kein" im Referenzlayout ist Spalte U (0-basiert 20)
+  geruchOffset = (geruchStartIdx !== -1 ? geruchStartIdx : 20) - 20;
+} else {
+  layout = 'ohne Kopfzeile (KdNr Spalte A, positionsbasiert)';
+  datenStartIndex = 0;
+  kdnrColIdx = 0;
+  datSColIdx = 11;
+  geruchOffset = 13 - 20; // Geruch-Block beginnt in diesem Layout an Spalte N (0-basiert 13)
+}
+console.log(`Erkanntes Layout: ${layout}`);
+
+// Hilfsfunktion: Spaltenbuchstabe (bezogen auf das Referenzlayout mit Kopfzeile in Spalte D)
+// -> tatsächlicher 0-basierter Index in dieser Datei.
 function col(letter) {
+  if (letter === 'D') return kdnrColIdx;
+  if (letter === 'S') return datSColIdx;
   let n = 0;
   for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
-  const idxAlt = n - 1;
-  if (layout === 'alt') return idxAlt;
-  if (letter === 'D') return 0; // KdNr
-  if (letter === 'S') return 11; // Dat_S
-  return idxAlt - 7;
+  const idxReferenz = n - 1;
+  return idxReferenz + geruchOffset;
 }
 
 function clean(v) {
@@ -65,6 +89,8 @@ function istAngekreuzt(v) {
 
 function fmtDatum(v) {
   if (!(v instanceof Date) || isNaN(v.getTime())) return null;
+  // Excel-Epoch-Bug abfangen: eine leere/0-Datumszelle wird manchmal als 30.12.1899 gelesen
+  if (v.getFullYear() < 1950) return null;
   const dd = String(v.getDate()).padStart(2, '0');
   const mm = String(v.getMonth() + 1).padStart(2, '0');
   return `${dd}.${mm}.${v.getFullYear()}`;
