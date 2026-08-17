@@ -506,43 +506,25 @@ app.get('/api/lager', requireAuth, async (req, res) => {
   try {
     const alleArtikel = [];
     let page = 1;
-    const pageSize = 50;
+    const pageSize = 150; // Xentral erlaubt 10-150
     let weiter = true;
 
     while (weiter && page <= 200) {
-      const params = {
+      const data = await xentralFetch('/api/v1/products', {
         'page[number]': String(page),
         'page[size]': String(pageSize),
-      };
-      // Projekt-Filter nur setzen, wenn vom Xentral-Endpoint unterstützt
-      if (XENTRAL_CH_PROJEKT) {
-        params['filter[0][key]'] = 'project';
-        params['filter[0][op]'] = 'equals';
-        params['filter[0][value]'] = XENTRAL_CH_PROJEKT;
-      }
-      let data;
-      try {
-        data = await xentralFetch('/api/v1/products', params);
-      } catch (err) {
-        // Falls "project" als Filter-Key nicht akzeptiert wird: ohne Filter nochmal versuchen
-        if (err.message.includes('400') && page === 1) {
-          console.log('Xentral: project-Filter nicht unterstützt, lade alle Artikel...');
-          data = await xentralFetch('/api/v1/products', {
-            'page[number]': '1',
-            'page[size]': String(pageSize),
-          });
-        } else {
-          throw err;
-        }
-      }
+      });
       const items = Array.isArray(data) ? data : (data.data || data.items || []);
       items.forEach((item) => {
-        // Projekt-Filter client-seitig, falls der Server-Filter nicht greift
-        if (XENTRAL_CH_PROJEKT && item.project && String(item.project) !== String(XENTRAL_CH_PROJEKT)) return;
-        const name = item.name || item.bezeichnung || item.description || '(ohne Name)';
-        const nummer = item.number || item.artikelnummer || item.id || '';
-        const bestand = item.stockCount ?? item.availableCount ?? item.bestand ?? item.stock ?? null;
-        alleArtikel.push({ name, nummer, bestand });
+        // Client-seitig nach Projekt filtern (project ist ein Objekt mit id/name)
+        const projektId = item.project && item.project.id ? String(item.project.id) : null;
+        if (XENTRAL_CH_PROJEKT && projektId !== XENTRAL_CH_PROJEKT) return;
+
+        alleArtikel.push({
+          name: item.name || '(ohne Name)',
+          nummer: item.number || '',
+          bestand: item.stockCount ?? 0,
+        });
       });
       if (items.length < pageSize) {
         weiter = false;
@@ -559,7 +541,7 @@ app.get('/api/lager', requireAuth, async (req, res) => {
   }
 });
 
-// Debug-Endpoint: zeigt die Rohfelder eines Xentral-Artikels, damit wir die richtigen Feldnamen kennen
+// Debug-Endpoint: zeigt die Rohfelder eines Xentral-Artikels
 app.get('/api/lager/debug', requireAuth, async (req, res) => {
   if (!XENTRAL_CH_TOKEN) {
     return res.status(400).json({ error: 'XENTRAL_CH_TOKEN ist nicht gesetzt.' });
@@ -567,7 +549,7 @@ app.get('/api/lager/debug', requireAuth, async (req, res) => {
   try {
     const data = await xentralFetch('/api/v1/products', {
       'page[number]': '1',
-      'page[size]': '3',
+      'page[size]': '10',
     });
     const items = Array.isArray(data) ? data : (data.data || data.items || []);
     res.json({
@@ -575,7 +557,6 @@ app.get('/api/lager/debug', requireAuth, async (req, res) => {
       anzahlImSample: items.length,
       felder: items[0] ? Object.keys(items[0]) : [],
       erstesItem: items[0] || null,
-      zweitesItem: items[1] || null,
     });
   } catch (err) {
     res.status(502).json({ error: err.message });
