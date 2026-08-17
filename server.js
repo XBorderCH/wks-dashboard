@@ -520,9 +520,13 @@ app.get('/api/lager', requireAuth, async (req, res) => {
         const projektId = item.project && item.project.id ? String(item.project.id) : null;
         if (XENTRAL_CH_PROJEKT && projektId !== XENTRAL_CH_PROJEKT) return;
 
+        // Artikel mit "container" in der SKU ausschliessen
+        const nummer = item.number || '';
+        if (nummer.toLowerCase().includes('container')) return;
+
         alleArtikel.push({
           name: item.name || '(ohne Name)',
-          nummer: item.number || '',
+          nummer,
           bestand: item.stockCount ?? 0,
         });
       });
