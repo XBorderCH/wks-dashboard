@@ -504,21 +504,20 @@ app.get('/api/lager', requireAuth, async (req, res) => {
   }
 
   try {
-    const filterJson = JSON.stringify([
-      { key: 'projekt', op: 'equals', value: XENTRAL_CH_PROJEKT },
-    ]);
-
     const alleArtikel = [];
     let page = 1;
-    const limit = 100;
+    const pageSize = 50; // Xentral erlaubt max. 50
     let weiter = true;
 
-    while (weiter && page <= 100) {
-      const data = await xentralFetch('/api/v1/products', {
-        filter: filterJson,
-        page,
-        limit,
-      });
+    while (weiter && page <= 200) {
+      const params = {
+        'filter[0][key]': 'projekt',
+        'filter[0][op]': 'equals',
+        'filter[0][value]': XENTRAL_CH_PROJEKT,
+        'page[number]': String(page),
+        'page[size]': String(pageSize),
+      };
+      const data = await xentralFetch('/api/v1/products', params);
       const items = Array.isArray(data) ? data : (data.data || data.items || []);
       items.forEach((item) => {
         const name = item.name || item.bezeichnung || item.description || '(ohne Name)';
@@ -526,7 +525,7 @@ app.get('/api/lager', requireAuth, async (req, res) => {
         const bestand = item.stockCount ?? item.bestand ?? item.stock ?? item.lagerbestand ?? null;
         alleArtikel.push({ name, nummer, bestand });
       });
-      if (items.length < limit) {
+      if (items.length < pageSize) {
         weiter = false;
       } else {
         page++;
