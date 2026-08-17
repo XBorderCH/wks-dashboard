@@ -7,6 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const PASSWORD = process.env.APP_PASSWORD || 'aendern123';
 
+// Xentral CH (Schweizer Instanz) – für Lagerbestände
+const XENTRAL_CH_URL = 'https://691465794f3a6.xentral.biz';
+const XENTRAL_CH_TOKEN = process.env.XENTRAL_CH_TOKEN || '';
+const XENTRAL_CH_PROJEKT = '24';
+
 let kunden = [];
 function loadData() {
   const p = path.join(__dirname, 'data', 'kunden.json');
@@ -475,6 +480,65 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
 
 app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ anzahl: kunden.length });
+});
+
+// ---- Xentral Lagerbestände ----
+async function xentralFetch(pfad, params = {}) {
+  const url = new URL(XENTRAL_CH_URL + pfad);
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+  }
+  const r = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${XENTRAL_CH_TOKEN}`, Accept: 'application/json' },
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`Xentral ${r.status}: ${body.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+app.get('/api/lager', requireAuth, async (req, res) => {
+  if (!XENTRAL_CH_TOKEN) {
+    return res.status(400).json({ error: 'XENTRAL_CH_TOKEN ist nicht gesetzt.' });
+  }
+
+  try {
+    const filterJson = JSON.stringify([
+      { key: 'projekt', op: 'equals', value: XENTRAL_CH_PROJEKT },
+    ]);
+
+    const alleArtikel = [];
+    let page = 1;
+    const limit = 100;
+    let weiter = true;
+
+    while (weiter && page <= 100) {
+      const data = await xentralFetch('/api/v1/products', {
+        filter: filterJson,
+        page,
+        limit,
+      });
+      const items = Array.isArray(data) ? data : (data.data || data.items || []);
+      items.forEach((item) => {
+        const name = item.name || item.bezeichnung || item.description || '(ohne Name)';
+        const nummer = item.number || item.artikelnummer || item.id || '';
+        const bestand = item.stockCount ?? item.bestand ?? item.stock ?? item.lagerbestand ?? null;
+        alleArtikel.push({ name, nummer, bestand });
+      });
+      if (items.length < limit) {
+        weiter = false;
+      } else {
+        page++;
+      }
+    }
+
+    alleArtikel.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+    res.json({ artikel: alleArtikel, anzahl: alleArtikel.length });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
