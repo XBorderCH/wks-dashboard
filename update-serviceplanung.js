@@ -98,6 +98,8 @@ rows.forEach((row) => {
   const zeitS = cleanZeit(row['Zeit_S']);
   const dat2 = fmtDate(row['Dat_2_26']);
   const zeit2 = cleanZeit(row['Zeit_2_26']);
+  const naechstServ = clean(row['Nächst.Serv.']);
+  const letzterServ = clean(row['letzter Serv.']);
 
   // 1. Alle bestehenden zukünftigen Termine entfernen (ab heute)
   const vorher = (kunde.termine || []).length;
@@ -110,6 +112,10 @@ rows.forEach((row) => {
   termineEntfernt += entfernt;
 
   // 2. Neue Termine aus dem Datenblatt hinzufügen
+  const serviceNotizen = [];
+  if (naechstServ) serviceNotizen.push({ label: 'Nächster Service', text: naechstServ });
+  if (letzterServ) serviceNotizen.push({ label: 'Letzter Service', text: letzterServ });
+
   const neueTermine = [];
   if (datS) {
     const d = parseDatum(datS);
@@ -118,6 +124,7 @@ rows.forEach((row) => {
       jahr: d ? String(d.getFullYear()) : null,
       datum: datS,
       zeit: zeitS,
+      notizen: serviceNotizen.length ? serviceNotizen : undefined,
     });
   }
   if (dat2 && dat2 !== datS) {
@@ -127,6 +134,7 @@ rows.forEach((row) => {
       jahr: d ? String(d.getFullYear()) : null,
       datum: dat2,
       zeit: zeit2,
+      notizen: serviceNotizen.length ? serviceNotizen : undefined,
     });
   } else if (dat2 && dat2 === datS && zeitS !== zeit2 && zeit2) {
     // Gleiches Datum, aber andere Uhrzeit -> 2. Service am selben Tag
@@ -136,15 +144,19 @@ rows.forEach((row) => {
       jahr: d ? String(d.getFullYear()) : null,
       datum: dat2,
       zeit: zeit2,
+      notizen: serviceNotizen.length ? serviceNotizen : undefined,
     });
   }
 
   neueTermine.forEach((t) => {
-    // Nur einfügen, falls nicht schon vorhanden (Duplikat-Schutz)
-    const existiert = kunde.termine.some(
+    const existierender = kunde.termine.find(
       (ex) => ex.datum === t.datum && ex.halbjahr === t.halbjahr
     );
-    if (!existiert) {
+    if (existierender) {
+      // Termin existiert bereits → Notizen aktualisieren
+      if (t.notizen) existierender.notizen = t.notizen;
+      if (t.zeit) existierender.zeit = t.zeit;
+    } else {
       kunde.termine.push(t);
       termineHinzugefuegt++;
     }

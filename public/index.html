@@ -337,6 +337,10 @@
   .timeline li.hat-analyse .tlabel,
   .timeline li.hat-analyse .tval{font-weight:700;color:var(--ink);}
   .timeline li.hat-analyse:hover{background:var(--bg);}
+  .timeline li.hat-notizen{cursor:pointer;}
+  .timeline li.hat-notizen .tlabel,
+  .timeline li.hat-notizen .tval{text-decoration:underline;color:var(--ink);}
+  .timeline li.hat-notizen:hover{background:var(--bg);}
   .analyse-chevron{
     color:var(--accent-ink);font-size:11px;flex:none;transition:transform 0.15s;
     display:inline-block;
@@ -861,9 +865,17 @@ function renderDetail(k){
       ${termine.length ? `<ul class="timeline">
         ${termine.map((t,i) => {
           const analyse = t.datum ? analysedatenByDatum[t.datum] : null;
-          const zeile = `<li class="${analyse ? 'hat-analyse' : ''}" ${analyse ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span>${analyse ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
-          const detail = analyse ? `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse)}</li>` : '';
-          return zeile + detail;
+          const notizen = t.notizen && t.notizen.length ? t.notizen : null;
+          const hatDetail = analyse || notizen;
+          const klasse = analyse ? 'hat-analyse' : (notizen ? 'hat-notizen' : '');
+          const zeile = `<li class="${klasse}" ${hatDetail ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span>${hatDetail ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
+          let detailHtml = '';
+          if(analyse){
+            detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse)}</li>`;
+          } else if(notizen){
+            detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}"><div class="analyse-detail">${notizen.map(n => `<div class="remark"><div class="rlabel">${escapeHtml(n.label)}</div>${escapeHtml(n.text)}</div>`).join('')}</div></li>`;
+          }
+          return zeile + detailHtml;
         }).join('')}
       </ul>` : '<div class="kv"><span class="k">Keine Termine erfasst</span></div>'}
     </div>
@@ -930,7 +942,7 @@ function renderDetail(k){
     });
   }
 
-  document.querySelectorAll('.hat-analyse').forEach(el => {
+  document.querySelectorAll('.hat-analyse, .hat-notizen').forEach(el => {
     el.addEventListener('click', () => {
       const idx = el.dataset.analyseIdx;
       const detailRow = document.getElementById('analyse-detail-' + idx);
