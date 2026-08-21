@@ -104,6 +104,7 @@ app.get('/api/tagestour/:datum', requireAuth, (req, res) => {
         ort: k.anlage ? k.anlage.ort : null,
         zeit: termin.zeit || null,
         fahrer: k.planung ? k.planung.fahrer : null,
+        notizen: termin.notizen || null,
       });
     }
   });

@@ -194,6 +194,11 @@
     font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;
     color:var(--accent-ink);flex:none;
   }
+  .tour-notiz{
+    background:var(--amber-soft);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;
+    padding:9px 12px;margin:0 10px 6px 62px;font-size:13px;line-height:1.5;color:var(--ink);
+  }
+  .tour-notiz-label{font-weight:600;color:var(--amber);}
   .modal-empty{padding:24px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
 
   /* ---- Logo-Dropdown-Menü ---- */
@@ -1059,6 +1064,9 @@ async function openTagestour(datum, fahrer){
     }
     $('#tagestour-body').innerHTML = liste.map(t => {
       const isSelf = t.kdnr === activeKdnr;
+      const notizenHtml = t.notizen && t.notizen.length
+        ? `<div class="tour-notiz">${t.notizen.map(n => `<span class="tour-notiz-label">${escapeHtml(n.label)}:</span> ${escapeHtml(n.text)}`).join('<br>')}</div>`
+        : '';
       return `
         <div class="tour-item${isSelf ? ' self' : ''}" data-kdnr="${escapeHtml(t.kdnr)}">
           <span class="tour-zeit">${t.zeit ? escapeHtml(formatZeit(t.zeit)) : '—'}</span>
@@ -1069,6 +1077,7 @@ async function openTagestour(datum, fahrer){
           ${t.fahrer ? `<span class="tour-fahrer ${t.fahrer === 'Ralph' ? 'ralph' : 'kathrin'}">${escapeHtml(t.fahrer)}</span>` : ''}
           ${isSelf ? '<span class="tour-badge">Aktuell</span>' : ''}
         </div>
+        ${notizenHtml}
       `;
     }).join('') + '<div class="route-summary" id="route-summary">Route wird berechnet…</div>';
     $('#tagestour-body').querySelectorAll('.tour-item').forEach(el => {
