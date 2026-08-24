@@ -194,6 +194,9 @@
     font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.03em;
     color:var(--accent-ink);flex:none;
   }
+  .tour-item.tour-storniert .tour-name,
+  .tour-item.tour-storniert .tour-ort,
+  .tour-item.tour-storniert .tour-zeit{text-decoration:line-through;color:var(--ink-soft);}
   .tour-notiz{
     background:var(--amber-soft);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;
     padding:9px 12px;margin:0 10px 6px 62px;font-size:13px;line-height:1.5;color:var(--ink);
@@ -346,6 +349,8 @@
   .timeline li.hat-notizen .tlabel,
   .timeline li.hat-notizen .tval{font-weight:700;color:var(--amber);}
   .timeline li.hat-notizen:hover{background:var(--bg);}
+  .timeline li.storniert .tlabel,
+  .timeline li.storniert .tval{text-decoration:line-through;color:var(--ink-soft);font-weight:400;}
   .analyse-chevron{
     color:var(--accent-ink);font-size:11px;flex:none;transition:transform 0.15s;
     display:inline-block;
@@ -872,7 +877,8 @@ function renderDetail(k){
           const analyse = t.datum ? analysedatenByDatum[t.datum] : null;
           const notizen = t.notizen && t.notizen.length ? t.notizen : null;
           const hatDetail = analyse || notizen;
-          const klasse = analyse ? 'hat-analyse' : (notizen ? 'hat-notizen' : '');
+          const storniert = t.storniert ? ' storniert' : '';
+          const klasse = (analyse ? 'hat-analyse' : (notizen ? 'hat-notizen' : '')) + storniert;
           const zeile = `<li class="${klasse}" ${hatDetail ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span>${hatDetail ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
           let detailHtml = '';
           if(analyse){
@@ -1068,7 +1074,7 @@ async function openTagestour(datum, fahrer){
         ? `<div class="tour-notiz">${t.notizen.map(n => `<span class="tour-notiz-label">${escapeHtml(n.label)}:</span> ${escapeHtml(n.text)}`).join('<br>')}</div>`
         : '';
       return `
-        <div class="tour-item${isSelf ? ' self' : ''}" data-kdnr="${escapeHtml(t.kdnr)}">
+        <div class="tour-item${isSelf ? ' self' : ''}${t.storniert ? ' tour-storniert' : ''}" data-kdnr="${escapeHtml(t.kdnr)}">
           <span class="tour-zeit">${t.zeit ? escapeHtml(formatZeit(t.zeit)) : '—'}</span>
           <span class="tour-info">
             <div class="tour-name">${escapeHtml(t.kdnrName || ('#'+t.kdnr))}</div>

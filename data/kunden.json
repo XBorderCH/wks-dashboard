@@ -53178,7 +53178,8 @@
             "label": "Letzter Service",
             "text": "1/25: Haus unbewohnt seit 1.25, zwischen 11-12 Uhr machen, Herr Hänggi kommt (079 225 97 26)"
           }
-        ]
+        ],
+        "storniert": true
       },
       {
         "halbjahr": "2",
@@ -53194,7 +53195,8 @@
             "label": "Letzter Service",
             "text": "1/25: Haus unbewohnt seit 1.25, zwischen 11-12 Uhr machen, Herr Hänggi kommt (079 225 97 26)"
           }
-        ]
+        ],
+        "storniert": true
       }
     ],
     "gebuehren": [
