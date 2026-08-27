@@ -162,9 +162,27 @@ rows.forEach((row) => {
     }
   });
 
-  // Termine chronologisch sortieren
+  // Termine chronologisch sortieren und halbjahr-Zuordnung pro Jahr korrigieren
+  // (damit nicht 2x "1. Service" im selben Jahr erscheint)
+  kunde.termine = (kunde.termine || []).filter(t => t.datum); // Geister-Einträge entfernen
+  const jahreMap = {};
+  kunde.termine.forEach((t) => {
+    if (!t.jahr) return;
+    if (!jahreMap[t.jahr]) jahreMap[t.jahr] = [];
+    jahreMap[t.jahr].push(t);
+  });
+  Object.values(jahreMap).forEach((tl) => {
+    if (tl.length < 2) return;
+    tl.sort((a, b) => {
+      const da = (a.datum || '').split('.').reverse().join('');
+      const db = (b.datum || '').split('.').reverse().join('');
+      return da.localeCompare(db);
+    });
+    tl[0].halbjahr = '1';
+    for (let i = 1; i < tl.length; i++) tl[i].halbjahr = '2';
+  });
   kunde.termine.sort((a, b) =>
-    (a.jahr + (a.halbjahr || '0')).localeCompare(b.jahr + (b.halbjahr || '0'))
+    ((a.jahr || '') + (a.halbjahr || '0')).localeCompare((b.jahr || '') + (b.halbjahr || '0'))
   );
 
   // 3. Planung aktualisieren
