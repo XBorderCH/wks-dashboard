@@ -202,6 +202,17 @@
     padding:9px 12px;margin:0 10px 6px 62px;font-size:13px;line-height:1.5;color:var(--ink);
   }
   .tour-notiz-label{font-weight:600;color:var(--amber);}
+  .zeit-indikator{
+    display:flex;align-items:center;gap:0;padding:0 10px;margin:2px 0;position:relative;
+  }
+  .zeit-indikator-linie{flex:1;height:2px;background:#D32F2F;}
+  .zeit-indikator-dot{
+    width:10px;height:10px;border-radius:50%;background:#D32F2F;flex:none;
+  }
+  .zeit-indikator-label{
+    font-size:11px;font-weight:700;color:#D32F2F;flex:none;
+    font-family:'IBM Plex Mono',monospace;margin-left:6px;
+  }
   .modal-empty{padding:24px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
 
   /* ---- Logo-Dropdown-Menü ---- */
@@ -503,6 +514,47 @@ function showApp(){
   $('#app').style.display = 'flex';
   loadMeta();
   $('#search-input').focus();
+  // Automatisch die heutige Tagestour anzeigen
+  zeigeHeutigeTour();
+}
+
+async function zeigeHeutigeTour(){
+  const heute = new Date().toLocaleDateString('de-CH', {timeZone:'Europe/Zurich', day:'2-digit', month:'2-digit', year:'numeric'});
+  // Format: DD.MM.YYYY
+  try{
+    const r = await fetch('/api/tagestour/' + encodeURIComponent(heute));
+    const d = await r.json();
+    const liste = d.kunden || [];
+    if(!liste.length) return; // Heute kein Einsatztag -> nichts anzeigen
+
+    const hatRalph = liste.some(t => t.fahrer === 'Ralph');
+    const hatKathrin = liste.some(t => t.fahrer === 'Kathrin');
+    if(hatRalph && hatKathrin){
+      // Beide unterwegs -> Vorauswahl anzeigen
+      zeigeHeutigeFahrerWahl(heute);
+    } else {
+      const fahrer = hatRalph ? 'Ralph' : 'Kathrin';
+      openTagestour(heute, fahrer);
+    }
+  }catch(err){}
+}
+
+function zeigeHeutigeFahrerWahl(datum){
+  const overlay = $('#tage-overlay');
+  $('#tage-title').textContent = 'Heute · ' + datum;
+  $('#tage-body').innerHTML = `
+    <div class="fahrer-choice">
+      <button type="button" class="fahrer-btn k" data-fahrer="Kathrin">Kathrin</button>
+      <button type="button" class="fahrer-btn r" data-fahrer="Ralph">Ralph</button>
+    </div>
+  `;
+  overlay.classList.add('open');
+  $('#tage-body').querySelectorAll('.fahrer-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeTage();
+      openTagestour(datum, btn.dataset.fahrer);
+    });
+  });
 }
 
 $('#login-form').addEventListener('submit', async (e) => {
@@ -1099,6 +1151,10 @@ async function openTagestour(datum, fahrer){
       const rs = document.getElementById('route-summary');
       if(rs) rs.remove();
     }
+
+    // Zeitindikator einfügen (roter Punkt + Linie an der aktuellen Tageszeit)
+    einfuegenZeitindikator(liste);
+
   }catch(err){
     $('#tagestour-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
   }
@@ -1319,6 +1375,68 @@ $('#lager-close').addEventListener('click', closeLager);
 $('#lager-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'lager-overlay') closeLager();
 });
+
+// ---- Zeitindikator (roter Punkt an aktueller Tageszeit) ----
+function einfuegenZeitindikator(liste){
+  // Aktuelle Uhrzeit in Bern (Minuten seit Mitternacht)
+  const jetzt = new Date();
+  const bernZeit = new Intl.DateTimeFormat('de-CH', {
+    timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(jetzt);
+  const [hh, mm] = bernZeit.split(':').map(Number);
+  const jetztMin = hh * 60 + mm;
+  const jetztLabel = String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
+
+  // Kunden-Zeiten als Minuten
+  const kundenMitZeit = [];
+  const tourItems = document.querySelectorAll('#tagestour-body .tour-item');
+  tourItems.forEach((el, i) => {
+    const kdnr = el.dataset.kdnr;
+    const t = liste.find(t => t.kdnr === kdnr);
+    if(t && t.zeit){
+      const digits = String(t.zeit).replace(/\D/g,'').padStart(4,'0');
+      const tMin = parseInt(digits.slice(0,2),10) * 60 + parseInt(digits.slice(2,4),10);
+      kundenMitZeit.push({ el, min: tMin, idx: i });
+    }
+  });
+  if(!kundenMitZeit.length) return;
+
+  // Finde die Position: nach dem letzten Kunden, dessen Zeit <= jetzt ist
+  const indikator = document.createElement('div');
+  indikator.className = 'zeit-indikator';
+  indikator.innerHTML = `<span class="zeit-indikator-dot"></span><span class="zeit-indikator-linie"></span><span class="zeit-indikator-label">${jetztLabel}</span>`;
+
+  // Alle Kunden die schon vorbei sind (Zeitpunkt < jetzt)
+  const vorbei = kundenMitZeit.filter(k => k.min <= jetztMin);
+
+  if(vorbei.length === 0){
+    // Noch vor dem ersten Kunden
+    const erster = kundenMitZeit[0].el;
+    erster.parentElement.insertBefore(indikator, erster);
+  } else if(vorbei.length === kundenMitZeit.length){
+    // Nach dem letzten Kunden (Tag vorbei)
+    const letzter = kundenMitZeit[kundenMitZeit.length - 1].el;
+    // Nach dem letzten Kunden (und evtl. seiner Notiz-Kachel) einfügen
+    let nachEl = letzter.nextElementSibling;
+    while(nachEl && nachEl.classList.contains('tour-notiz')) nachEl = nachEl.nextElementSibling;
+    if(nachEl) {
+      nachEl.parentElement.insertBefore(indikator, nachEl);
+    } else {
+      letzter.parentElement.appendChild(indikator);
+    }
+  } else {
+    // Zwischen zwei Kunden
+    const letzterVorbei = vorbei[vorbei.length - 1].el;
+    let nachEl = letzterVorbei.nextElementSibling;
+    // Überspringe Notiz-Kacheln und Fahrzeit-Connectoren
+    while(nachEl && (nachEl.classList.contains('tour-notiz') || nachEl.classList.contains('fahrzeit-connector'))) {
+      nachEl = nachEl.nextElementSibling;
+    }
+    if(nachEl) {
+      nachEl.parentElement.insertBefore(indikator, nachEl);
+    }
+  }
+}
 
 checkSession();
 </script>
