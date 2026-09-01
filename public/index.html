@@ -177,6 +177,7 @@
   }
   .tour-item:hover{background:var(--bg);}
   .tour-item.self{background:var(--accent-soft);}
+  .tour-item.naechster-kunde{background:var(--accent-soft);border-left:3px solid var(--accent);}
   .tour-item .tour-zeit{
     font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:13.5px;color:var(--accent-ink);
     flex:none;min-width:52px;
@@ -202,14 +203,6 @@
     padding:9px 12px;margin:0 10px 6px 62px;font-size:13px;line-height:1.5;color:var(--ink);
   }
   .tour-notiz-label{font-weight:600;color:var(--amber);}
-  .zeit-indikator{
-    position:absolute;left:10px;width:3px;background:#D32F2F;z-index:2;pointer-events:none;
-  }
-  .zeit-indikator-dot{
-    position:absolute;left:5px;width:12px;height:12px;border-radius:50%;background:#D32F2F;
-    z-index:3;pointer-events:none;transform:translate(-50%, -50%);
-    box-shadow:0 0 0 3px rgba(211,47,47,0.2);
-  }
   .modal-empty{padding:24px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
 
   /* ---- Logo-Dropdown-Menü ---- */
@@ -1117,20 +1110,47 @@ async function openTagestour(datum, fahrer){
       $('#tagestour-body').innerHTML = '<div class="modal-empty">Keine weiteren Termine an diesem Tag gefunden.</div>';
       return;
     }
+    // Nächsten anstehenden Kunden nur ermitteln, wenn es der heutige Tag ist
+    const heuteDatum = new Date().toLocaleDateString('de-CH', {timeZone:'Europe/Zurich', day:'2-digit', month:'2-digit', year:'numeric'});
+    const istHeute = datum === heuteDatum;
+
+    let naechsterKdnr = null;
+    if(istHeute){
+      const bernJetzt = new Intl.DateTimeFormat('de-CH', {
+        timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', hour12: false
+      }).format(new Date());
+      const [jH, jM] = bernJetzt.split(':').map(Number);
+      const jetztMin = jH * 60 + jM;
+
+      // Nächster Kunde = erster nicht-stornierter Kunde, dessen Zeit > jetzt
+      for(const t of liste){
+        if(t.storniert) continue;
+        if(!t.zeit) continue;
+        const digits = String(t.zeit).replace(/\D/g,'').padStart(4,'0');
+        const tMin = parseInt(digits.slice(0,2),10) * 60 + parseInt(digits.slice(2,4),10);
+        if(tMin > jetztMin){
+          naechsterKdnr = t.kdnr;
+          break;
+        }
+      }
+    }
+
     $('#tagestour-body').innerHTML = liste.map(t => {
       const isSelf = t.kdnr === activeKdnr;
+      const istNaechster = t.kdnr === naechsterKdnr;
       const notizenHtml = t.notizen && t.notizen.length
         ? `<div class="tour-notiz">${t.notizen.map(n => `<span class="tour-notiz-label">${escapeHtml(n.label)}:</span> ${escapeHtml(n.text)}`).join('<br>')}</div>`
         : '';
       return `
-        <div class="tour-item${isSelf ? ' self' : ''}${t.storniert ? ' tour-storniert' : ''}" data-kdnr="${escapeHtml(t.kdnr)}">
+        <div class="tour-item${isSelf ? ' self' : ''}${istNaechster ? ' naechster-kunde' : ''}${t.storniert ? ' tour-storniert' : ''}" data-kdnr="${escapeHtml(t.kdnr)}">
           <span class="tour-zeit">${t.zeit ? escapeHtml(formatZeit(t.zeit)) : '—'}</span>
           <span class="tour-info">
             <div class="tour-name">${escapeHtml(t.kdnrName || ('#'+t.kdnr))}</div>
             ${t.ort ? `<div class="tour-ort">${escapeHtml(t.ort)}</div>` : ''}
           </span>
           ${t.fahrer ? `<span class="tour-fahrer ${t.fahrer === 'Ralph' ? 'ralph' : 'kathrin'}">${escapeHtml(t.fahrer)}</span>` : ''}
-          ${isSelf ? '<span class="tour-badge">Aktuell</span>' : ''}
+          ${istNaechster ? '<span class="tour-badge">Nächster</span>' : ''}
+          ${isSelf && !istNaechster ? '<span class="tour-badge">Aktuell</span>' : ''}
         </div>
         ${notizenHtml}
       `;
@@ -1148,9 +1168,6 @@ async function openTagestour(datum, fahrer){
       const rs = document.getElementById('route-summary');
       if(rs) rs.remove();
     }
-
-    // Zeitindikator einfügen (roter Punkt + Linie an der aktuellen Tageszeit)
-    einfuegenZeitindikator(liste);
 
   }catch(err){
     $('#tagestour-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
@@ -1372,66 +1389,6 @@ $('#lager-close').addEventListener('click', closeLager);
 $('#lager-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'lager-overlay') closeLager();
 });
-
-// ---- Zeitindikator (vertikale rote Linie links mit Punkt an aktueller Position) ----
-function einfuegenZeitindikator(liste){
-  const body = document.getElementById('tagestour-body');
-  if(!body) return;
-
-  // Modal-Body braucht position:relative für absolute Positionierung
-  body.style.position = 'relative';
-
-  // Aktuelle Uhrzeit in Bern (Minuten seit Mitternacht)
-  const jetzt = new Date();
-  const bernZeit = new Intl.DateTimeFormat('de-CH', {
-    timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', hour12: false
-  }).format(jetzt);
-  const [hh, mm] = bernZeit.split(':').map(Number);
-  const jetztMin = hh * 60 + mm;
-
-  // Kunden-Zeiten + ihre DOM-Positionen sammeln
-  const tourItems = body.querySelectorAll('.tour-item');
-  const punkte = [];
-  tourItems.forEach(el => {
-    const kdnr = el.dataset.kdnr;
-    const t = liste.find(t => t.kdnr === kdnr);
-    if(t && t.zeit){
-      const digits = String(t.zeit).replace(/\D/g,'').padStart(4,'0');
-      const tMin = parseInt(digits.slice(0,2),10) * 60 + parseInt(digits.slice(2,4),10);
-      punkte.push({ el, min: tMin });
-    }
-  });
-  if(punkte.length < 2) return;
-
-  const ersterMin = punkte[0].min;
-  const letzterMin = punkte[punkte.length - 1].min;
-  if(letzterMin <= ersterMin) return;
-
-  // Vertikale Position berechnen (top des ersten bis bottom des letzten Kunden)
-  const bodyRect = body.getBoundingClientRect();
-  const ersterRect = punkte[0].el.getBoundingClientRect();
-  const letzterRect = punkte[punkte.length - 1].el.getBoundingClientRect();
-
-  const linieTop = ersterRect.top - bodyRect.top + ersterRect.height / 2;
-  const linieBottom = letzterRect.top - bodyRect.top + letzterRect.height / 2;
-  const linieHoehe = linieBottom - linieTop;
-
-  // Linie von erstem bis letztem Kunden
-  const linie = document.createElement('div');
-  linie.className = 'zeit-indikator';
-  linie.style.top = linieTop + 'px';
-  linie.style.height = linieHoehe + 'px';
-  body.appendChild(linie);
-
-  // Roter Punkt an der aktuellen Zeit
-  const fortschritt = Math.max(0, Math.min(1, (jetztMin - ersterMin) / (letzterMin - ersterMin)));
-  const dotTop = linieTop + fortschritt * linieHoehe;
-
-  const dot = document.createElement('div');
-  dot.className = 'zeit-indikator-dot';
-  dot.style.top = dotTop + 'px';
-  body.appendChild(dot);
-}
 
 checkSession();
 </script>
