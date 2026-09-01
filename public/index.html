@@ -203,15 +203,12 @@
   }
   .tour-notiz-label{font-weight:600;color:var(--amber);}
   .zeit-indikator{
-    display:flex;align-items:center;gap:0;padding:0 10px;margin:2px 0;position:relative;
+    position:absolute;left:10px;width:3px;background:#D32F2F;z-index:2;pointer-events:none;
   }
-  .zeit-indikator-linie{flex:1;height:2px;background:#D32F2F;}
   .zeit-indikator-dot{
-    width:10px;height:10px;border-radius:50%;background:#D32F2F;flex:none;
-  }
-  .zeit-indikator-label{
-    font-size:11px;font-weight:700;color:#D32F2F;flex:none;
-    font-family:'IBM Plex Mono',monospace;margin-left:6px;
+    position:absolute;left:5px;width:12px;height:12px;border-radius:50%;background:#D32F2F;
+    z-index:3;pointer-events:none;transform:translate(-50%, -50%);
+    box-shadow:0 0 0 3px rgba(211,47,47,0.2);
   }
   .modal-empty{padding:24px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;}
 
@@ -1376,8 +1373,14 @@ $('#lager-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'lager-overlay') closeLager();
 });
 
-// ---- Zeitindikator (roter Punkt an aktueller Tageszeit) ----
+// ---- Zeitindikator (vertikale rote Linie links mit Punkt an aktueller Position) ----
 function einfuegenZeitindikator(liste){
+  const body = document.getElementById('tagestour-body');
+  if(!body) return;
+
+  // Modal-Body braucht position:relative für absolute Positionierung
+  body.style.position = 'relative';
+
   // Aktuelle Uhrzeit in Bern (Minuten seit Mitternacht)
   const jetzt = new Date();
   const bernZeit = new Intl.DateTimeFormat('de-CH', {
@@ -1385,57 +1388,49 @@ function einfuegenZeitindikator(liste){
   }).format(jetzt);
   const [hh, mm] = bernZeit.split(':').map(Number);
   const jetztMin = hh * 60 + mm;
-  const jetztLabel = String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
 
-  // Kunden-Zeiten als Minuten
-  const kundenMitZeit = [];
-  const tourItems = document.querySelectorAll('#tagestour-body .tour-item');
-  tourItems.forEach((el, i) => {
+  // Kunden-Zeiten + ihre DOM-Positionen sammeln
+  const tourItems = body.querySelectorAll('.tour-item');
+  const punkte = [];
+  tourItems.forEach(el => {
     const kdnr = el.dataset.kdnr;
     const t = liste.find(t => t.kdnr === kdnr);
     if(t && t.zeit){
       const digits = String(t.zeit).replace(/\D/g,'').padStart(4,'0');
       const tMin = parseInt(digits.slice(0,2),10) * 60 + parseInt(digits.slice(2,4),10);
-      kundenMitZeit.push({ el, min: tMin, idx: i });
+      punkte.push({ el, min: tMin });
     }
   });
-  if(!kundenMitZeit.length) return;
+  if(punkte.length < 2) return;
 
-  // Finde die Position: nach dem letzten Kunden, dessen Zeit <= jetzt ist
-  const indikator = document.createElement('div');
-  indikator.className = 'zeit-indikator';
-  indikator.innerHTML = `<span class="zeit-indikator-dot"></span><span class="zeit-indikator-linie"></span><span class="zeit-indikator-label">${jetztLabel}</span>`;
+  const ersterMin = punkte[0].min;
+  const letzterMin = punkte[punkte.length - 1].min;
+  if(letzterMin <= ersterMin) return;
 
-  // Alle Kunden die schon vorbei sind (Zeitpunkt < jetzt)
-  const vorbei = kundenMitZeit.filter(k => k.min <= jetztMin);
+  // Vertikale Position berechnen (top des ersten bis bottom des letzten Kunden)
+  const bodyRect = body.getBoundingClientRect();
+  const ersterRect = punkte[0].el.getBoundingClientRect();
+  const letzterRect = punkte[punkte.length - 1].el.getBoundingClientRect();
 
-  if(vorbei.length === 0){
-    // Noch vor dem ersten Kunden
-    const erster = kundenMitZeit[0].el;
-    erster.parentElement.insertBefore(indikator, erster);
-  } else if(vorbei.length === kundenMitZeit.length){
-    // Nach dem letzten Kunden (Tag vorbei)
-    const letzter = kundenMitZeit[kundenMitZeit.length - 1].el;
-    // Nach dem letzten Kunden (und evtl. seiner Notiz-Kachel) einfügen
-    let nachEl = letzter.nextElementSibling;
-    while(nachEl && nachEl.classList.contains('tour-notiz')) nachEl = nachEl.nextElementSibling;
-    if(nachEl) {
-      nachEl.parentElement.insertBefore(indikator, nachEl);
-    } else {
-      letzter.parentElement.appendChild(indikator);
-    }
-  } else {
-    // Zwischen zwei Kunden
-    const letzterVorbei = vorbei[vorbei.length - 1].el;
-    let nachEl = letzterVorbei.nextElementSibling;
-    // Überspringe Notiz-Kacheln und Fahrzeit-Connectoren
-    while(nachEl && (nachEl.classList.contains('tour-notiz') || nachEl.classList.contains('fahrzeit-connector'))) {
-      nachEl = nachEl.nextElementSibling;
-    }
-    if(nachEl) {
-      nachEl.parentElement.insertBefore(indikator, nachEl);
-    }
-  }
+  const linieTop = ersterRect.top - bodyRect.top + ersterRect.height / 2;
+  const linieBottom = letzterRect.top - bodyRect.top + letzterRect.height / 2;
+  const linieHoehe = linieBottom - linieTop;
+
+  // Linie von erstem bis letztem Kunden
+  const linie = document.createElement('div');
+  linie.className = 'zeit-indikator';
+  linie.style.top = linieTop + 'px';
+  linie.style.height = linieHoehe + 'px';
+  body.appendChild(linie);
+
+  // Roter Punkt an der aktuellen Zeit
+  const fortschritt = Math.max(0, Math.min(1, (jetztMin - ersterMin) / (letzterMin - ersterMin)));
+  const dotTop = linieTop + fortschritt * linieHoehe;
+
+  const dot = document.createElement('div');
+  dot.className = 'zeit-indikator-dot';
+  dot.style.top = dotTop + 'px';
+  body.appendChild(dot);
 }
 
 checkSession();
