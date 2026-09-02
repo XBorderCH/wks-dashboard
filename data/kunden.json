@@ -46185,6 +46185,63 @@
             "wert": "Jungschlamm, flockig"
           }
         ]
+      },
+      {
+        "datum": "01.09.2026",
+        "geruch": "kein",
+        "farbe": "trüb / bräunlich",
+        "schlammAblauf": "wenig",
+        "handlungsbedarf": "Nein",
+        "messwerteImmer": [
+          {
+            "label": "pH",
+            "wert": "4"
+          },
+          {
+            "label": "O2 A",
+            "wert": "7.8"
+          },
+          {
+            "label": "Temp A",
+            "wert": "17.2"
+          },
+          {
+            "label": "DS",
+            "wert": "6"
+          },
+          {
+            "label": "Amm.",
+            "wert": "11.2"
+          },
+          {
+            "label": "CSB",
+            "wert": "132"
+          }
+        ],
+        "messwerteOptional": [
+          {
+            "label": "Schlammfarbe",
+            "wert": "braun"
+          },
+          {
+            "label": "Ab.Vol.",
+            "wert": "80"
+          },
+          {
+            "label": "Stunden",
+            "wert": "13176"
+          },
+          {
+            "label": "Monteur",
+            "wert": "R"
+          }
+        ],
+        "bemerkungen": [
+          {
+            "label": "Bemerkungen",
+            "wert": "pH-Wert massiv unterschritten. Evtl. durch saure Reiniger"
+          }
+        ]
       }
     ]
   },
