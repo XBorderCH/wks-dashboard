@@ -370,6 +370,7 @@
     margin-top:4px;padding-top:4px;border-top:1px solid var(--line);
   }
   .analyse-detail .remark{font-size:13px;padding:8px 0;}
+  .betriebszeit-zeile{margin-top:4px;padding-top:6px;border-top:1px dashed var(--accent);color:var(--accent-ink);}
 
   table.fee-table{width:100%;border-collapse:collapse;font-size:13.5px;}
   table.fee-table th{
@@ -884,9 +885,17 @@ function renderDetail(k){
   termine.sort((a,b) => (a.jahr + (a.halbjahr||'0')).localeCompare(b.jahr + (b.halbjahr||'0')));
   termine.reverse();
   const analysedatenByDatum = {};
-  (k.analysedaten || []).forEach(a => { analysedatenByDatum[a.datum] = a; });
+  const analysedatenSortiert = (k.analysedaten || []).slice().sort((a,b) =>
+    a.datum.split('.').reverse().join('').localeCompare(b.datum.split('.').reverse().join(''))
+  );
+  analysedatenSortiert.forEach(a => { analysedatenByDatum[a.datum] = a; });
 
-  function renderAnalyseDetail(a){
+  function findeVorherigeAnalyse(datum){
+    const idx = analysedatenSortiert.findIndex(a => a.datum === datum);
+    return idx > 0 ? analysedatenSortiert[idx - 1] : null;
+  }
+
+  function renderAnalyseDetail(a, vorherigeAnalyse){
     const zeilen = [];
     if(a.geruch) zeilen.push(['Geruch', a.geruch]);
     if(a.farbe) zeilen.push(['Farbe', a.farbe]);
@@ -900,11 +909,40 @@ function renderDetail(k){
       ...(a.messwerteOptional || []).filter(m => m.wert !== '-'),
     ];
 
+    // Betriebszeit/Tag berechnen: Stunden des aktuellen Service vs. vorheriger Service
+    let betriebszeitHtml = '';
+    if(vorherigeAnalyse){
+      const alleMW = m => [...(m.messwerteImmer||[]), ...(m.messwerteOptional||[])];
+      const stAktuell = alleMW(a).find(m => m.label === 'Stunden');
+      const stVorher = alleMW(vorherigeAnalyse).find(m => m.label === 'Stunden');
+      if(stAktuell && stVorher && stAktuell.wert && stVorher.wert && stAktuell.wert !== '-' && stVorher.wert !== '-' && stAktuell.wert !== 'k.A.' && stVorher.wert !== 'k.A.'){
+        const ha = parseFloat(stAktuell.wert);
+        const hv = parseFloat(stVorher.wert);
+        if(!isNaN(ha) && !isNaN(hv) && ha > hv){
+          const d1 = vorherigeAnalyse.datum.split('.'); const d2 = a.datum.split('.');
+          const dt1 = new Date(d1[2],d1[1]-1,d1[0]); const dt2 = new Date(d2[2],d2[1]-1,d2[0]);
+          const tage = Math.round((dt2-dt1)/(24*60*60*1000));
+          if(tage > 0){
+            const diffStunden = ha - hv;
+            const minProTag = Math.round(diffStunden * 60 / tage);
+            let bzText;
+            if(minProTag >= 60){
+              bzText = Math.floor(minProTag/60) + ' Std ' + (minProTag%60) + ' Min';
+            } else {
+              bzText = minProTag + ' Min';
+            }
+            betriebszeitHtml = `<div class="kv betriebszeit-zeile"><span class="k">Betriebszeit/Tag</span><span class="v mono">${escapeHtml(bzText)}</span></div>`;
+          }
+        }
+      }
+    }
+
     return `
       <div class="analyse-detail">
         ${zeilen.map(([l,v]) => `<div class="kv"><span class="k">${escapeHtml(l)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')}
         ${messwerte.length ? `<div class="analyse-messwerte">
           ${messwerte.map(m => `<div class="kv"><span class="k">${escapeHtml(m.label)}</span><span class="v mono">${escapeHtml(m.wert)}</span></div>`).join('')}
+          ${betriebszeitHtml}
         </div>` : ''}
         ${(a.bemerkungen||[]).map(b => `<div class="remark"><div class="rlabel">${escapeHtml(b.label)}</div>${escapeHtml(b.wert)}</div>`).join('')}
       </div>
@@ -924,7 +962,7 @@ function renderDetail(k){
           const zeile = `<li class="${klasse}" ${hatDetail ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${t.zeit?(' · '+escapeHtml(formatZeit(t.zeit))+' Uhr'):''}</span>${hatDetail ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
           let detailHtml = '';
           if(analyse){
-            detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse)}</li>`;
+            detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse, findeVorherigeAnalyse(analyse.datum))}</li>`;
           } else if(notizen){
             detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}"><div class="analyse-detail">${notizen.map(n => `<div class="remark"><div class="rlabel">${escapeHtml(n.label)}</div>${escapeHtml(n.text)}</div>`).join('')}</div></li>`;
           }
