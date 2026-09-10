@@ -155,11 +155,11 @@
   .chip-clickable:active{filter:brightness(0.9);}
 
   /* ---- Tagestour-Modal ---- */
-  #tagestour-overlay, #tage-overlay, #lager-overlay{
+  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
     align-items:center;justify-content:center;padding:20px;
   }
-  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open{display:flex;}
+  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open{display:flex;}
   .modal-card{
     background:var(--surface);border-radius:12px;max-width:440px;width:100%;
     max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(20,30,26,0.2);
@@ -254,6 +254,25 @@
   .lager-bestand.null{color:var(--red);}
   .lager-bestand.positiv{color:var(--accent-ink);}
   .lager-count{font-size:12px;color:var(--ink-soft);padding:10px 10px 4px;border-bottom:1px solid var(--line);}
+
+  /* ---- Schieber ---- */
+  .schieber-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;margin:10px 8px;
+  }
+  .schieber-nr{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:16px;color:var(--ink);margin-bottom:8px;}
+  .schieber-kompressor{font-size:13.5px;font-weight:600;color:var(--accent-ink);margin-bottom:8px;}
+  .schieber-details{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:13px;margin-bottom:8px;}
+  .schieber-details .sk{color:var(--ink-soft);}
+  .schieber-details .sv{font-weight:500;}
+  .schieber-kunden{display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;border-top:1px solid var(--line);}
+  .schieber-kunde{
+    font-size:12.5px;padding:4px 10px;border-radius:20px;background:var(--bg);color:var(--ink);
+  }
+  .schieber-kunde.verlinkt{
+    background:var(--accent-soft);color:var(--accent-ink);cursor:pointer;font-weight:600;
+  }
+  .schieber-kunde.verlinkt:hover{background:var(--accent);color:#fff;}
   .route-summary{
     margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
     font-size:14px;color:var(--ink-soft);
@@ -436,6 +455,9 @@
         <button type="button" class="logo-menu-item" data-menu="lager">
           <span>Lager</span>
         </button>
+        <button type="button" class="logo-menu-item" data-menu="schieber">
+          <span>Schieber</span>
+        </button>
       </div>
     </div>
     <div class="search-wrap">
@@ -486,6 +508,16 @@
       <button class="modal-close" id="lager-close">&times;</button>
     </div>
     <div class="modal-body" id="lager-body"></div>
+  </div>
+</div>
+
+<div id="schieber-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="schieber-title">Schieber</h3>
+      <button class="modal-close" id="schieber-close">&times;</button>
+    </div>
+    <div class="modal-body" id="schieber-body"></div>
   </div>
 </div>
 
@@ -1241,6 +1273,7 @@ if(logoBtn){
       const menu = item.dataset.menu;
       if(menu === 'einsatztage') openEinsatztage();
       if(menu === 'lager') openLager();
+      if(menu === 'schieber') openSchieber();
     });
   });
 }
@@ -1427,6 +1460,67 @@ function closeLager(){
 $('#lager-close').addEventListener('click', closeLager);
 $('#lager-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'lager-overlay') closeLager();
+});
+
+// ---- Schieber ----
+async function openSchieber(){
+  const overlay = $('#schieber-overlay');
+  $('#schieber-title').textContent = 'Schieber';
+  $('#schieber-body').innerHTML = '<div class="modal-empty">Lade…</div>';
+  overlay.classList.add('open');
+
+  try{
+    const r = await fetch('/api/schieber');
+    const data = await r.json();
+    if(!data.length){
+      $('#schieber-body').innerHTML = '<div class="modal-empty">Keine Schieber-Daten.</div>';
+      return;
+    }
+    $('#schieber-body').innerHTML = data.map(s => {
+      const details = [
+        s.bez ? ['Bez.', s.bez] : null,
+        s.bestellnr ? ['Bestellnr.', s.bestellnr] : null,
+        s.masse ? ['Masse', s.masse] : null,
+        s.mindMasse ? ['Mind.Masse', s.mindMasse] : null,
+      ].filter(Boolean);
+
+      const kundenHtml = s.kunden.map(k => {
+        if(k.kdnr){
+          return `<span class="schieber-kunde verlinkt" data-kdnr="${escapeHtml(k.kdnr)}">${escapeHtml(k.name)}</span>`;
+        }
+        return `<span class="schieber-kunde">${escapeHtml(k.name)}</span>`;
+      }).join('');
+
+      return `
+        <div class="schieber-card">
+          <div class="schieber-nr">${escapeHtml(s.nr)}</div>
+          <div class="schieber-kompressor">${escapeHtml(s.kompressor)}</div>
+          ${details.length ? `<div class="schieber-details">
+            ${details.map(([l,v]) => `<span class="sk">${escapeHtml(l)}</span><span class="sv">${escapeHtml(v)}</span>`).join('')}
+          </div>` : ''}
+          <div class="schieber-kunden">${kundenHtml}</div>
+        </div>
+      `;
+    }).join('');
+
+    // Kunden-Links verdrahten
+    $('#schieber-body').querySelectorAll('.schieber-kunde.verlinkt').forEach(el => {
+      el.addEventListener('click', () => {
+        closeSchieber();
+        openKunde(el.dataset.kdnr);
+      });
+    });
+  }catch(err){
+    $('#schieber-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
+  }
+}
+
+function closeSchieber(){
+  $('#schieber-overlay').classList.remove('open');
+}
+$('#schieber-close').addEventListener('click', closeSchieber);
+$('#schieber-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'schieber-overlay') closeSchieber();
 });
 
 checkSession();

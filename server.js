@@ -484,6 +484,16 @@ app.get('/api/meta', requireAuth, (req, res) => {
   res.json({ anzahl: kunden.length });
 });
 
+app.get('/api/schieber', requireAuth, (req, res) => {
+  try {
+    const p = path.join(__dirname, 'data', 'schieber.json');
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'schieber.json nicht gefunden.' });
+  }
+});
+
 // ---- Xentral Lagerbestände ----
 async function xentralFetch(pfad, params = {}) {
   const url = new URL(XENTRAL_CH_URL + pfad);
