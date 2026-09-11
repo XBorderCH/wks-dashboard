@@ -11,6 +11,7 @@ const PASSWORD = process.env.APP_PASSWORD || 'aendern123';
 const SHOPIFY_STORE = 'dhb5cz-wf.myshopify.com';
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || '';
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET || '';
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || '';
 
 let kunden = [];
 function loadData() {
@@ -495,11 +496,46 @@ app.get('/api/schieber', requireAuth, (req, res) => {
 });
 
 // ---- Shopify Lagerbestände ----
+// ---- Shopify OAuth (einmalig durchlaufen, um den permanenten Access Token zu erhalten) ----
+app.get('/shopify/auth', requireAuth, (req, res) => {
+  if (!SHOPIFY_CLIENT_ID) return res.send('SHOPIFY_CLIENT_ID nicht gesetzt.');
+  const redirectUri = `https://${req.get('host')}/shopify/callback`;
+  const url = `https://${SHOPIFY_STORE}/admin/oauth/authorize?client_id=${SHOPIFY_CLIENT_ID}&scope=read_products,read_inventory&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  res.redirect(url);
+});
+
+app.get('/shopify/callback', requireAuth, async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.send('Fehler: kein Code erhalten.');
+  try {
+    const r = await fetch(`https://${SHOPIFY_STORE}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: SHOPIFY_CLIENT_ID,
+        client_secret: SHOPIFY_CLIENT_SECRET,
+        code,
+      }),
+    });
+    const data = await r.json();
+    if (data.access_token) {
+      res.send(`<h2>Shopify Access Token erhalten!</h2>
+        <p>Trage diesen bei Render als <b>SHOPIFY_ACCESS_TOKEN</b> ein:</p>
+        <pre style="background:#f0f0f0;padding:16px;font-size:18px;word-break:break-all;">${data.access_token}</pre>
+        <p>Danach Render neu deployen. Dieser Schritt muss nur einmal gemacht werden.</p>`);
+    } else {
+      res.send(`Fehler: ${JSON.stringify(data)}`);
+    }
+  } catch (err) {
+    res.send(`Fehler: ${err.message}`);
+  }
+});
+
+// ---- Shopify GraphQL API ----
 let shopifyAccessToken = null;
 
-// Bei Dev-Dashboard-Apps ist der Client Secret direkt der Access Token
 function getShopifyToken() {
-  return SHOPIFY_CLIENT_SECRET;
+  return SHOPIFY_ACCESS_TOKEN;
 }
 
 async function shopifyGraphQL(query) {
@@ -520,8 +556,8 @@ async function shopifyGraphQL(query) {
 }
 
 app.get('/api/lager', requireAuth, async (req, res) => {
-  if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
-    return res.status(400).json({ error: 'SHOPIFY_CLIENT_ID oder SHOPIFY_CLIENT_SECRET ist nicht gesetzt.' });
+  if (!SHOPIFY_ACCESS_TOKEN) {
+    return res.status(400).json({ error: 'SHOPIFY_ACCESS_TOKEN ist nicht gesetzt. Bitte zuerst /shopify/auth aufrufen.' });
   }
 
   try {
@@ -603,8 +639,8 @@ app.get('/api/lager', requireAuth, async (req, res) => {
 
 // Debug-Endpoint: zeigt die Rohdaten eines Shopify-Produkts
 app.get('/api/lager/debug', requireAuth, async (req, res) => {
-  if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
-    return res.status(400).json({ error: 'SHOPIFY_CLIENT_ID oder SHOPIFY_CLIENT_SECRET ist nicht gesetzt.' });
+  if (!SHOPIFY_ACCESS_TOKEN) {
+    return res.status(400).json({ error: 'SHOPIFY_ACCESS_TOKEN ist nicht gesetzt.' });
   }
   try {
     const query = `{
