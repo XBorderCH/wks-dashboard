@@ -497,27 +497,13 @@ app.get('/api/schieber', requireAuth, (req, res) => {
 // ---- Shopify Lagerbestände ----
 let shopifyAccessToken = null;
 
-async function getShopifyToken() {
-  if (shopifyAccessToken) return shopifyAccessToken;
-  const r = await fetch(`https://${SHOPIFY_STORE}/admin/oauth/access_token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: SHOPIFY_CLIENT_ID,
-      client_secret: SHOPIFY_CLIENT_SECRET,
-    }),
-  });
-  if (!r.ok) {
-    const body = await r.text().catch(() => '');
-    throw new Error(`Shopify Token-Fehler ${r.status}: ${body.slice(0, 300)}`);
-  }
-  const data = await r.json();
-  shopifyAccessToken = data.access_token;
-  return shopifyAccessToken;
+// Bei Dev-Dashboard-Apps ist der Client Secret direkt der Access Token
+function getShopifyToken() {
+  return SHOPIFY_CLIENT_SECRET;
 }
 
 async function shopifyGraphQL(query) {
-  const token = await getShopifyToken();
+  const token = getShopifyToken();
   const r = await fetch(`https://${SHOPIFY_STORE}/admin/api/2026-07/graphql.json`, {
     method: 'POST',
     headers: {
@@ -527,24 +513,6 @@ async function shopifyGraphQL(query) {
     body: JSON.stringify({ query }),
   });
   if (!r.ok) {
-    // Token abgelaufen? Einmal neu holen und retry
-    if (r.status === 401) {
-      shopifyAccessToken = null;
-      const token2 = await getShopifyToken();
-      const r2 = await fetch(`https://${SHOPIFY_STORE}/admin/api/2026-07/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': token2,
-        },
-        body: JSON.stringify({ query }),
-      });
-      if (!r2.ok) {
-        const body = await r2.text().catch(() => '');
-        throw new Error(`Shopify ${r2.status}: ${body.slice(0, 300)}`);
-      }
-      return r2.json();
-    }
     const body = await r.text().catch(() => '');
     throw new Error(`Shopify ${r.status}: ${body.slice(0, 300)}`);
   }
