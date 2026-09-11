@@ -7,10 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const PASSWORD = process.env.APP_PASSWORD || 'aendern123';
 
-// Xentral CH (Schweizer Instanz) – für Lagerbestände
-const XENTRAL_CH_URL = 'https://691465794f3a6.xentral.biz';
-const XENTRAL_CH_TOKEN = process.env.XENTRAL_CH_TOKEN || '';
-const XENTRAL_CH_PROJEKT = '24';
+// Shopify – für Lagerbestände
+const SHOPIFY_STORE = 'dhb5cz-wf.myshopify.com';
+const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || '';
+const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET || '';
 
 let kunden = [];
 function loadData() {
@@ -494,58 +494,134 @@ app.get('/api/schieber', requireAuth, (req, res) => {
   }
 });
 
-// ---- Xentral Lagerbestände ----
-async function xentralFetch(pfad, params = {}) {
-  const url = new URL(XENTRAL_CH_URL + pfad);
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
-  }
-  const r = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${XENTRAL_CH_TOKEN}`, Accept: 'application/json' },
+// ---- Shopify Lagerbestände ----
+let shopifyAccessToken = null;
+
+async function getShopifyToken() {
+  if (shopifyAccessToken) return shopifyAccessToken;
+  const r = await fetch(`https://${SHOPIFY_STORE}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: SHOPIFY_CLIENT_ID,
+      client_secret: SHOPIFY_CLIENT_SECRET,
+    }),
   });
   if (!r.ok) {
     const body = await r.text().catch(() => '');
-    throw new Error(`Xentral ${r.status}: ${body.slice(0, 300)}`);
+    throw new Error(`Shopify Token-Fehler ${r.status}: ${body.slice(0, 300)}`);
+  }
+  const data = await r.json();
+  shopifyAccessToken = data.access_token;
+  return shopifyAccessToken;
+}
+
+async function shopifyGraphQL(query) {
+  const token = await getShopifyToken();
+  const r = await fetch(`https://${SHOPIFY_STORE}/admin/api/2026-07/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': token,
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!r.ok) {
+    // Token abgelaufen? Einmal neu holen und retry
+    if (r.status === 401) {
+      shopifyAccessToken = null;
+      const token2 = await getShopifyToken();
+      const r2 = await fetch(`https://${SHOPIFY_STORE}/admin/api/2026-07/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': token2,
+        },
+        body: JSON.stringify({ query }),
+      });
+      if (!r2.ok) {
+        const body = await r2.text().catch(() => '');
+        throw new Error(`Shopify ${r2.status}: ${body.slice(0, 300)}`);
+      }
+      return r2.json();
+    }
+    const body = await r.text().catch(() => '');
+    throw new Error(`Shopify ${r.status}: ${body.slice(0, 300)}`);
   }
   return r.json();
 }
 
 app.get('/api/lager', requireAuth, async (req, res) => {
-  if (!XENTRAL_CH_TOKEN) {
-    return res.status(400).json({ error: 'XENTRAL_CH_TOKEN ist nicht gesetzt.' });
+  if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
+    return res.status(400).json({ error: 'SHOPIFY_CLIENT_ID oder SHOPIFY_CLIENT_SECRET ist nicht gesetzt.' });
   }
 
   try {
     const alleArtikel = [];
-    let page = 1;
-    const pageSize = 150; // Xentral erlaubt 10-150
+    let cursor = null;
     let weiter = true;
 
-    while (weiter && page <= 200) {
-      const data = await xentralFetch('/api/v1/products', {
-        'page[number]': String(page),
-        'page[size]': String(pageSize),
-      });
-      const items = Array.isArray(data) ? data : (data.data || data.items || []);
-      items.forEach((item) => {
-        // Client-seitig nach Projekt filtern (project ist ein Objekt mit id/name)
-        const projektId = item.project && item.project.id ? String(item.project.id) : null;
-        if (XENTRAL_CH_PROJEKT && projektId !== XENTRAL_CH_PROJEKT) return;
+    while (weiter) {
+      const afterClause = cursor ? `, after: "${cursor}"` : '';
+      const query = `{
+        products(first: 250${afterClause}) {
+          pageInfo { hasNextPage }
+          edges {
+            cursor
+            node {
+              title
+              variants(first: 50) {
+                edges {
+                  node {
+                    sku
+                    inventoryQuantity
+                    displayName
+                  }
+                }
+              }
+            }
+          }
+        }
+      }`;
 
-        // Artikel mit "container" in der SKU ausschliessen
-        const nummer = item.number || '';
-        if (nummer.toLowerCase().includes('container')) return;
+      const data = await shopifyGraphQL(query);
 
-        alleArtikel.push({
-          name: item.name || '(ohne Name)',
-          nummer,
-          bestand: item.stockCount ?? 0,
-        });
+      if (data.errors) {
+        throw new Error(data.errors.map((e) => e.message).join('; '));
+      }
+
+      const edges = data.data.products.edges || [];
+      edges.forEach((edge) => {
+        const prod = edge.node;
+        const variants = (prod.variants.edges || []).map((ve) => ve.node);
+
+        if (variants.length === 1) {
+          const v = variants[0];
+          const sku = v.sku || '';
+          if (sku.toLowerCase().includes('container')) return;
+          alleArtikel.push({
+            name: prod.title,
+            nummer: sku,
+            bestand: v.inventoryQuantity ?? 0,
+          });
+        } else {
+          // Mehrere Varianten: jede einzeln auflisten
+          variants.forEach((v) => {
+            const sku = v.sku || '';
+            if (sku.toLowerCase().includes('container')) return;
+            alleArtikel.push({
+              name: v.displayName || prod.title,
+              nummer: sku,
+              bestand: v.inventoryQuantity ?? 0,
+            });
+          });
+        }
       });
-      if (items.length < pageSize) {
-        weiter = false;
+
+      if (data.data.products.pageInfo.hasNextPage && edges.length) {
+        cursor = edges[edges.length - 1].cursor;
       } else {
-        page++;
+        weiter = false;
       }
     }
 
@@ -557,23 +633,36 @@ app.get('/api/lager', requireAuth, async (req, res) => {
   }
 });
 
-// Debug-Endpoint: zeigt die Rohfelder eines Xentral-Artikels
+// Debug-Endpoint: zeigt die Rohdaten eines Shopify-Produkts
 app.get('/api/lager/debug', requireAuth, async (req, res) => {
-  if (!XENTRAL_CH_TOKEN) {
-    return res.status(400).json({ error: 'XENTRAL_CH_TOKEN ist nicht gesetzt.' });
+  if (!SHOPIFY_CLIENT_ID || !SHOPIFY_CLIENT_SECRET) {
+    return res.status(400).json({ error: 'SHOPIFY_CLIENT_ID oder SHOPIFY_CLIENT_SECRET ist nicht gesetzt.' });
   }
   try {
-    const data = await xentralFetch('/api/v1/products', {
-      'page[number]': '1',
-      'page[size]': '10',
-    });
-    const items = Array.isArray(data) ? data : (data.data || data.items || []);
-    res.json({
-      meta: data.meta || data.pagination || null,
-      anzahlImSample: items.length,
-      felder: items[0] ? Object.keys(items[0]) : [],
-      erstesItem: items[0] || null,
-    });
+    const query = `{
+      products(first: 3) {
+        edges {
+          node {
+            title
+            productType
+            vendor
+            tags
+            variants(first: 5) {
+              edges {
+                node {
+                  sku
+                  inventoryQuantity
+                  displayName
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    }`;
+    const data = await shopifyGraphQL(query);
+    res.json(data);
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
