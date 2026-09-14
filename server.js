@@ -107,6 +107,7 @@ app.get('/api/tagestour/:datum', requireAuth, (req, res) => {
         fahrer: k.planung ? k.planung.fahrer : null,
         notizen: termin.notizen || null,
         storniert: termin.storniert || false,
+        koordinaten: k.anlage ? k.anlage.koordinaten : null,
       });
     }
   });
@@ -482,7 +483,11 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
 });
 
 app.get('/api/meta', requireAuth, (req, res) => {
-  res.json({ anzahl: kunden.length });
+  res.json({ anzahl: kunden.length, gmapKey: process.env.GOOGLE_MAPS_API_KEY ? true : false });
+});
+
+app.get('/api/config', requireAuth, (req, res) => {
+  res.json({ gmapKey: process.env.GOOGLE_MAPS_API_KEY || '' });
 });
 
 app.get('/api/schieber', requireAuth, (req, res) => {
@@ -504,9 +509,10 @@ app.get('/shopify/auth', requireAuth, (req, res) => {
   res.redirect(url);
 });
 
-app.get('/shopify/callback', requireAuth, async (req, res) => {
-  const { code } = req.query;
-  if (!code) return res.send('Fehler: kein Code erhalten.');
+app.get('/shopify/callback', async (req, res) => {
+  const { code, error, error_description } = req.query;
+  if (error) return res.send(`Shopify-Fehler: ${error} – ${error_description || ''}`);
+  if (!code) return res.send(`Fehler: kein Code erhalten. Query: ${JSON.stringify(req.query)}`);
   try {
     const r = await fetch(`https://${SHOPIFY_STORE}/admin/oauth/access_token`, {
       method: 'POST',
@@ -517,14 +523,16 @@ app.get('/shopify/callback', requireAuth, async (req, res) => {
         code,
       }),
     });
-    const data = await r.json();
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { return res.send(`Shopify-Antwort (${r.status}): ${text.slice(0,500)}`); }
     if (data.access_token) {
       res.send(`<h2>Shopify Access Token erhalten!</h2>
         <p>Trage diesen bei Render als <b>SHOPIFY_ACCESS_TOKEN</b> ein:</p>
         <pre style="background:#f0f0f0;padding:16px;font-size:18px;word-break:break-all;">${data.access_token}</pre>
         <p>Danach Render neu deployen. Dieser Schritt muss nur einmal gemacht werden.</p>`);
     } else {
-      res.send(`Fehler: ${JSON.stringify(data)}`);
+      res.send(`Shopify-Antwort (${r.status}): ${JSON.stringify(data)}`);
     }
   } catch (err) {
     res.send(`Fehler: ${err.message}`);

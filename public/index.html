@@ -279,6 +279,19 @@
   }
   .route-summary strong{color:var(--ink);font-weight:700;}
   .route-hinweis{font-size:12px;}
+  .karte-btn{
+    display:block;width:100%;margin-top:10px;padding:11px;border:1px dashed var(--line);
+    border-radius:8px;background:none;color:var(--accent-ink);font-family:inherit;
+    font-size:13.5px;font-weight:600;cursor:pointer;text-align:center;
+  }
+  .karte-btn:hover{background:var(--accent-soft);border-style:solid;}
+  .tour-karte{margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--line);}
+  .tour-karte iframe{width:100%;height:300px;border:none;}
+  .karte-link{
+    display:block;text-align:center;padding:10px;font-size:13px;font-weight:600;
+    color:var(--accent-ink);text-decoration:none;background:var(--bg);
+  }
+  .karte-link:hover{background:var(--accent-soft);}
   .fahrzeit-connector{
     display:flex;align-items:center;gap:8px;padding:2px 14px;
   }
@@ -607,6 +620,12 @@ async function loadMeta(){
   if(!r.ok) return;
   const d = await r.json();
   $('#meta-count').textContent = d.anzahl + ' Kunden';
+  // Google Maps Key für Kartenembeds laden
+  try{
+    const cr = await fetch('/api/config');
+    const cd = await cr.json();
+    window._gmapKey = cd.gmapKey || '';
+  }catch(e){}
 }
 
 let searchTimer = null;
@@ -1225,7 +1244,27 @@ async function openTagestour(datum, fahrer){
         </div>
         ${notizenHtml}
       `;
-    }).join('') + '<div class="route-summary" id="route-summary">Route wird berechnet…</div>';
+    }).join('') + '<div class="route-summary" id="route-summary">Route wird berechnet…</div><div id="tour-karte-container"></div>';
+
+    // Karte-Button einfügen (mit Koordinaten der Tour-Kunden)
+    const kartenContainer = document.getElementById('tour-karte-container');
+    if(kartenContainer){
+      const tourKoords = liste.filter(t => !t.storniert && t.koordinaten).map(t => {
+        const m = t.koordinaten.match(/([NS])\s*([\d.]+)\D*([EW])\s*([\d.]+)/i);
+        if(!m) return null;
+        let lat = parseFloat(m[2]); let lon = parseFloat(m[4]);
+        if(/S/i.test(m[1])) lat = -lat;
+        if(/W/i.test(m[3])) lon = -lon;
+        return {lat, lon, name: t.kdnrName};
+      }).filter(Boolean);
+
+      if(tourKoords.length >= 2){
+        kartenContainer.innerHTML = `<button type="button" class="karte-btn" id="karte-btn">Route auf Karte anzeigen</button>`;
+        document.getElementById('karte-btn').addEventListener('click', () => {
+          zeigeRoutenKarte(tourKoords, kartenContainer);
+        });
+      }
+    }
     $('#tagestour-body').querySelectorAll('.tour-item').forEach(el => {
       el.addEventListener('click', () => {
         closeTagestour();
@@ -1522,6 +1561,29 @@ $('#schieber-close').addEventListener('click', closeSchieber);
 $('#schieber-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'schieber-overlay') closeSchieber();
 });
+
+// ---- Routenkarte ----
+function zeigeRoutenKarte(punkte, container){
+  if(punkte.length < 2) return;
+  const origin = `${punkte[0].lat},${punkte[0].lon}`;
+  const destination = `${punkte[punkte.length-1].lat},${punkte[punkte.length-1].lon}`;
+  const waypoints = punkte.slice(1,-1).map(p => `${p.lat},${p.lon}`).join('|');
+
+  // Google Maps Directions-Link (öffnet Google Maps App auf Mobile)
+  let mapsUrl = `https://www.google.com/maps/dir/${origin}`;
+  punkte.slice(1).forEach(p => { mapsUrl += `/${p.lat},${p.lon}`; });
+
+  // Embed-URL (braucht Maps Embed API aktiviert)
+  let embedUrl = `https://www.google.com/maps/embed/v1/directions?key=${encodeURIComponent(window._gmapKey || '')}&origin=${origin}&destination=${destination}&mode=driving`;
+  if(waypoints) embedUrl += `&waypoints=${encodeURIComponent(waypoints)}`;
+
+  container.innerHTML = `
+    <div class="tour-karte">
+      <iframe src="${embedUrl}" allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <a class="karte-link" href="${mapsUrl}" target="_blank" rel="noopener">In Google Maps öffnen ↗</a>
+    </div>
+  `;
+}
 
 checkSession();
 </script>
