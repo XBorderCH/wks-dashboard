@@ -500,6 +500,16 @@ app.get('/api/schieber', requireAuth, (req, res) => {
   }
 });
 
+app.get('/api/grenzwerte', requireAuth, (req, res) => {
+  try {
+    const p = path.join(__dirname, 'data', 'grenzwerte.json');
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'grenzwerte.json nicht gefunden.' });
+  }
+});
+
 // ---- Shopify Lagerbestände ----
 // ---- Shopify OAuth (einmalig durchlaufen, um den permanenten Access Token zu erhalten) ----
 app.get('/shopify/auth', requireAuth, (req, res) => {

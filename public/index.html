@@ -155,11 +155,11 @@
   .chip-clickable:active{filter:brightness(0.9);}
 
   /* ---- Tagestour-Modal ---- */
-  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay{
+  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
     align-items:center;justify-content:center;padding:20px;
   }
-  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open{display:flex;}
+  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open{display:flex;}
   .modal-card{
     background:var(--surface);border-radius:12px;max-width:440px;width:100%;
     max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(20,30,26,0.2);
@@ -273,6 +273,34 @@
     background:var(--accent-soft);color:var(--accent-ink);cursor:pointer;font-weight:600;
   }
   .schieber-kunde.verlinkt:hover{background:var(--accent);color:#fff;}
+
+  /* ---- Grenzwerte ---- */
+  .gw-kanton-grid{
+    display:grid;grid-template-columns:repeat(auto-fill, minmax(58px,1fr));gap:8px;padding:12px 8px;
+  }
+  .gw-kanton-btn{
+    padding:12px 6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);
+    cursor:pointer;font-family:inherit;font-size:15px;font-weight:700;color:var(--ink);
+    text-align:center;
+  }
+  .gw-kanton-btn:hover{background:var(--accent-soft);border-color:var(--accent);}
+  .gw-detail{padding:8px;}
+  .gw-back{
+    display:inline-flex;align-items:center;gap:6px;background:none;border:none;color:var(--ink-soft);
+    font-size:13px;cursor:pointer;font-family:inherit;padding:8px 0;
+  }
+  .gw-kanton-label{font-size:22px;font-weight:700;text-align:center;margin:8px 0 16px;}
+  .gw-zeile{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:10px 12px;border-bottom:1px solid #F0F3F1;font-size:15px;
+  }
+  .gw-zeile:last-child{border-bottom:none;}
+  .gw-zeile .gw-label{color:var(--ink-soft);}
+  .gw-zeile .gw-wert{font-weight:600;font-family:'IBM Plex Mono',monospace;text-align:right;white-space:pre-line;}
+  .gw-zeile.gw-zusatz{background:var(--amber-soft);border-radius:8px;margin:2px 0;border-bottom:none;}
+  .gw-zeile.gw-zusatz .gw-label{color:var(--amber);}
+  .gw-zeile.gw-footer{color:var(--ink-soft);font-size:13.5px;}
+  .gw-trenn{height:1px;background:var(--line);margin:8px 0;}
   .route-summary{
     margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
     font-size:14px;color:var(--ink-soft);
@@ -471,6 +499,9 @@
         <button type="button" class="logo-menu-item" data-menu="schieber">
           <span>Schieber</span>
         </button>
+        <button type="button" class="logo-menu-item" data-menu="grenzwerte">
+          <span>Grenzwerte</span>
+        </button>
       </div>
     </div>
     <div class="search-wrap">
@@ -531,6 +562,16 @@
       <button class="modal-close" id="schieber-close">&times;</button>
     </div>
     <div class="modal-body" id="schieber-body"></div>
+  </div>
+</div>
+
+<div id="grenzwerte-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="grenzwerte-title">Grenzwerte</h3>
+      <button class="modal-close" id="grenzwerte-close">&times;</button>
+    </div>
+    <div class="modal-body" id="grenzwerte-body"></div>
   </div>
 </div>
 
@@ -1313,6 +1354,7 @@ if(logoBtn){
       if(menu === 'einsatztage') openEinsatztage();
       if(menu === 'lager') openLager();
       if(menu === 'schieber') openSchieber();
+      if(menu === 'grenzwerte') openGrenzwerte();
     });
   });
 }
@@ -1584,6 +1626,93 @@ function zeigeRoutenKarte(punkte, container){
     </div>
   `;
 }
+
+// ---- Grenzwerte ----
+let grenzwerteCache = null;
+
+async function openGrenzwerte(){
+  const overlay = $('#grenzwerte-overlay');
+  $('#grenzwerte-title').textContent = 'Einleitgrenzwerte';
+  $('#grenzwerte-body').innerHTML = '<div class="modal-empty">Lade…</div>';
+  overlay.classList.add('open');
+
+  try{
+    if(!grenzwerteCache){
+      const r = await fetch('/api/grenzwerte');
+      grenzwerteCache = await r.json();
+    }
+    zeigeKantonGrid();
+  }catch(err){
+    $('#grenzwerte-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
+  }
+}
+
+function zeigeKantonGrid(){
+  $('#grenzwerte-title').textContent = 'Einleitgrenzwerte';
+  $('#grenzwerte-body').innerHTML = `<div class="gw-kanton-grid">
+    ${grenzwerteCache.map(g => `<button type="button" class="gw-kanton-btn" data-kanton="${escapeHtml(g.kanton)}">${escapeHtml(g.kanton)}</button>`).join('')}
+  </div>`;
+  $('#grenzwerte-body').querySelectorAll('.gw-kanton-btn').forEach(btn => {
+    btn.addEventListener('click', () => zeigeKantonDetail(btn.dataset.kanton));
+  });
+}
+
+function zeigeKantonDetail(kanton){
+  const g = grenzwerteCache.find(x => x.kanton === kanton);
+  if(!g) return;
+  $('#grenzwerte-title').textContent = kanton;
+
+  const hauptwerte = [
+    ['pH', g.ph],
+    ['Ammonium (mg/l)', g.ammonium],
+    ['CSB (mg/l)', g.csb],
+    ['Snellen (cm)', g.snellen],
+  ].filter(([,v]) => v);
+
+  const zusatzwerte = [
+    ['Nitrit (mg/l)', g.nitrit],
+    ['GUS (mg/l)', g.gus],
+    ['BSB5 (mg/l)', g.bsb5],
+    ['Phosphor (mg/l)', g.phosphor],
+  ].filter(([,v]) => v);
+
+  const footer = [
+    ['Mindesttemperatur', g.temp ? g.temp + ' °C' : null],
+    ['Anz. Service Belebtschlamm', g.anzService ? g.anzService + 'x / Jahr' : null],
+  ].filter(([,v]) => v);
+
+  let html = `<button type="button" class="gw-back" id="gw-back">&larr; Alle Kantone</button>`;
+  html += `<div class="gw-kanton-label">${escapeHtml(kanton)}</div>`;
+
+  if(hauptwerte.length){
+    html += hauptwerte.map(([l,v]) => `<div class="gw-zeile"><span class="gw-label">${escapeHtml(l)}</span><span class="gw-wert">${escapeHtml(v)}</span></div>`).join('');
+  }
+
+  if(zusatzwerte.length){
+    html += `<div class="gw-trenn"></div>`;
+    html += zusatzwerte.map(([l,v]) => `<div class="gw-zeile gw-zusatz"><span class="gw-label">${escapeHtml(l)}</span><span class="gw-wert">${escapeHtml(v)}</span></div>`).join('');
+  }
+
+  if(footer.length){
+    html += `<div class="gw-trenn"></div>`;
+    html += footer.map(([l,v]) => `<div class="gw-zeile gw-footer"><span class="gw-label">${escapeHtml(l)}</span><span class="gw-wert">${escapeHtml(v)}</span></div>`).join('');
+  }
+
+  if(!hauptwerte.length && !zusatzwerte.length){
+    html += '<div class="modal-empty">Keine Grenzwerte hinterlegt.</div>';
+  }
+
+  $('#grenzwerte-body').innerHTML = `<div class="gw-detail">${html}</div>`;
+  document.getElementById('gw-back').addEventListener('click', zeigeKantonGrid);
+}
+
+function closeGrenzwerte(){
+  $('#grenzwerte-overlay').classList.remove('open');
+}
+$('#grenzwerte-close').addEventListener('click', closeGrenzwerte);
+$('#grenzwerte-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'grenzwerte-overlay') closeGrenzwerte();
+});
 
 checkSession();
 </script>
