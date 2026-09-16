@@ -151,16 +151,20 @@ rows.forEach((row) => {
       zeit: zeit2,
       notizen: serviceNotizen.length ? serviceNotizen : undefined,
     });
-  } else if (dat2 && dat2 === datS && zeitS !== zeit2 && zeit2) {
-    // Gleiches Datum, aber andere Uhrzeit -> 2. Service am selben Tag
-    const d = parseDatum(dat2);
-    neueTermine.push({
-      halbjahr: '2',
-      jahr: d ? String(d.getFullYear()) : null,
-      datum: dat2,
-      zeit: zeit2,
-      notizen: serviceNotizen.length ? serviceNotizen : undefined,
-    });
+  } else if (dat2 && dat2 === datS && zeit2) {
+    // Gleicher Tag: nur 2. Termin anlegen wenn die Zeiten wirklich unterschiedlich sind
+    const z1 = zeitS ? zeitS.replace(/\D/g, '').padStart(4, '0') : '';
+    const z2 = zeit2 ? zeit2.replace(/\D/g, '').padStart(4, '0') : '';
+    if (z1 !== z2) {
+      const d = parseDatum(dat2);
+      neueTermine.push({
+        halbjahr: '2',
+        jahr: d ? String(d.getFullYear()) : null,
+        datum: dat2,
+        zeit: zeit2,
+        notizen: serviceNotizen.length ? serviceNotizen : undefined,
+      });
+    }
   }
 
   neueTermine.forEach((t) => {
@@ -196,6 +200,14 @@ rows.forEach((row) => {
     tl[0].halbjahr = '1';
     for (let i = 1; i < tl.length; i++) tl[i].halbjahr = '2';
   });
+  kunde.termine.sort((a, b) =>
+    ((a.jahr || '') + (a.halbjahr || '0')).localeCompare((b.jahr || '') + (b.halbjahr || '0'))
+  );
+
+  // Finale Deduplizierung (Sicherheitsnetz): pro Datum+Halbjahr nur den letzten behalten
+  const bestByKey = {};
+  kunde.termine.forEach((t) => { bestByKey[(t.datum || '') + '|' + (t.halbjahr || '')] = t; });
+  kunde.termine = Object.values(bestByKey);
   kunde.termine.sort((a, b) =>
     ((a.jahr || '') + (a.halbjahr || '0')).localeCompare((b.jahr || '') + (b.halbjahr || '0'))
   );
