@@ -431,6 +431,8 @@
   }
   .analyse-detail .remark{font-size:13px;padding:8px 0;}
   .betriebszeit-zeile{margin-top:4px;padding-top:6px;border-top:1px dashed var(--accent);color:var(--accent-ink);}
+  .gw-ok .v, .gw-ok .mw-wert{color:#2E7D32 !important;}
+  .gw-fail .v, .gw-fail .mw-wert{color:#C62828 !important;font-weight:700 !important;}
 
   table.fee-table{width:100%;border-collapse:collapse;font-size:13.5px;}
   table.fee-table th{
@@ -661,12 +663,16 @@ async function loadMeta(){
   if(!r.ok) return;
   const d = await r.json();
   $('#meta-count').textContent = d.anzahl + ' Kunden';
-  // Google Maps Key für Kartenembeds laden
   try{
     const cr = await fetch('/api/config');
     const cd = await cr.json();
     window._gmapKey = cd.gmapKey || '';
   }catch(e){}
+  // Grenzwerte für Farbcodierung laden
+  try{
+    const gr = await fetch('/api/grenzwerte');
+    window._grenzwerte = await gr.json();
+  }catch(e){ window._grenzwerte = []; }
 }
 
 let searchTimer = null;
@@ -976,6 +982,8 @@ function renderDetail(k){
   });
   termine.sort((a,b) => (a.jahr + (a.halbjahr||'0')).localeCompare(b.jahr + (b.halbjahr||'0')));
   termine.reverse();
+  const kundenKanton = k.planung && k.planung.zustKt ? k.planung.zustKt : null;
+
   const analysedatenByDatum = {};
   const analysedatenSortiert = (k.analysedaten || []).slice().sort((a,b) =>
     a.datum.split('.').reverse().join('').localeCompare(b.datum.split('.').reverse().join(''))
@@ -987,12 +995,71 @@ function renderDetail(k){
     return idx > 0 ? analysedatenSortiert[idx - 1] : null;
   }
 
-  function renderAnalyseDetail(a, vorherigeAnalyse){
+  // Mapping: Analyse-Label → Grenzwerte-Feld
+  const GW_MAP = {
+    'pH': 'ph', 'Amm.': 'ammonium', 'CSB': 'csb', 'DS': 'snellen',
+    'Nitrit': 'nitrit', 'GUS': 'gus', 'BSB5': 'bsb5', 'Phosphat': 'phosphor',
+  };
+
+  // Grenzwert-String parsen: gibt {typ, wert, min, max} zurück oder null
+  function parseGrenzwert(s){
+    if(!s) return null;
+    // Range: "6.5 - 9"
+    const rangeM = s.match(/^([\d.]+)\s*-\s*([\d.]+)$/);
+    if(rangeM) return {typ:'range', min:parseFloat(rangeM[1]), max:parseFloat(rangeM[2])};
+    // Kleiner: "<3", "<0.3", "<60 (irgendwas)" – nimmt den strengsten Wert
+    const ltMatches = [...s.matchAll(/<\s*([\d.]+)/g)];
+    if(ltMatches.length){
+      const strengster = Math.min(...ltMatches.map(m => parseFloat(m[1])));
+      return {typ:'lt', wert: strengster};
+    }
+    // Grösser: ">30", ">35"
+    const gtM = s.match(/>\s*([\d.]+)/);
+    if(gtM) return {typ:'gt', wert:parseFloat(gtM[1])};
+    return null;
+  }
+
+  // Messwert aus Analyse-String extrahieren (z.B. "<1" → 0.9, ">60" → 61, "7.3" → 7.3)
+  function parseMesswert(v){
+    if(!v || v === '-' || v === 'k.A.') return null;
+    const ltM = v.match(/^<\s*([\d.]+)/);
+    if(ltM) return parseFloat(ltM[1]) * 0.99; // knapp darunter
+    const gtM = v.match(/^>\s*([\d.]+)/);
+    if(gtM) return parseFloat(gtM[1]) * 1.01; // knapp darüber
+    const n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+
+  // Vergleich: ist der Messwert innerhalb des Grenzwerts?
+  function pruefeGrenzwert(messwert, grenzwert){
+    const gw = parseGrenzwert(grenzwert);
+    const mw = parseMesswert(messwert);
+    if(!gw || mw === null) return null; // nicht prüfbar
+    if(gw.typ === 'range') return mw >= gw.min && mw <= gw.max;
+    if(gw.typ === 'lt') return mw < gw.wert;
+    if(gw.typ === 'gt') return mw > gw.wert;
+    return null;
+  }
+
+  function renderAnalyseDetail(a, vorherigeAnalyse, kanton){
+    // Grenzwerte für diesen Kanton laden
+    const gwKanton = kanton && window._grenzwerte ? window._grenzwerte.find(g => g.kanton === kanton) : null;
+
+    function gwKlasse(label, wert){
+      if(!gwKanton) return '';
+      const feld = GW_MAP[label];
+      if(!feld || !gwKanton[feld]) return '';
+      const ok = pruefeGrenzwert(wert, gwKanton[feld]);
+      if(ok === true) return ' gw-ok';
+      if(ok === false) return ' gw-fail';
+      return '';
+    }
+
     const zeilen = [];
-    if(a.geruch) zeilen.push(['Geruch', a.geruch]);
-    if(a.farbe) zeilen.push(['Farbe', a.farbe]);
-    if(a.schlammAblauf) zeilen.push(['Schlamm Ablauf', a.schlammAblauf]);
-    if(a.handlungsbedarf) zeilen.push(['Handlungsbedarf', a.handlungsbedarf]);
+    if(a.geruch) zeilen.push(['Geruch', a.geruch, '']);
+    if(a.farbe) zeilen.push(['Farbe', a.farbe, '']);
+    if(a.schlammAblauf) zeilen.push(['Schlamm Ablauf', a.schlammAblauf, '']);
+    if(a.handlungsbedarf) zeilen.push(['Handlungsbedarf', a.handlungsbedarf, '']);
 
     // Immer angezeigte Kernwerte bleiben immer sichtbar (auch "k.A."); bei den optionalen
     // Messwerten wird ein reiner "-"-Eintrag komplett weggelassen.
@@ -1031,9 +1098,9 @@ function renderDetail(k){
 
     return `
       <div class="analyse-detail">
-        ${zeilen.map(([l,v]) => `<div class="kv"><span class="k">${escapeHtml(l)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')}
+        ${zeilen.map(([l,v,cls]) => `<div class="kv${cls}"><span class="k">${escapeHtml(l)}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')}
         ${messwerte.length ? `<div class="analyse-messwerte">
-          ${messwerte.map(m => `<div class="kv"><span class="k">${escapeHtml(m.label)}</span><span class="v mono">${escapeHtml(m.wert)}</span></div>`).join('')}
+          ${messwerte.map(m => `<div class="kv${gwKlasse(m.label, m.wert)}"><span class="k">${escapeHtml(m.label)}</span><span class="v mono">${escapeHtml(m.wert)}</span></div>`).join('')}
           ${betriebszeitHtml}
         </div>` : ''}
         ${(a.bemerkungen||[]).map(b => `<div class="remark"><div class="rlabel">${escapeHtml(b.label)}</div>${escapeHtml(b.wert)}</div>`).join('')}
@@ -1055,7 +1122,7 @@ function renderDetail(k){
           const zeile = `<li class="${klasse}" ${hatDetail ? `data-analyse-idx="${i}"` : ''}><span class="tdot"></span><span class="tlabel">${t.halbjahr ? t.halbjahr+'. Service' : 'Service'} ${escapeHtml(t.jahr)}</span><span class="tval">${escapeHtml(t.datum||'—')}${zeitAnzeige}</span>${hatDetail ? '<span class="analyse-chevron">&#9662;</span>' : ''}</li>`;
           let detailHtml = '';
           if(analyse){
-            detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse, findeVorherigeAnalyse(analyse.datum))}</li>`;
+            detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}">${renderAnalyseDetail(analyse, findeVorherigeAnalyse(analyse.datum), kundenKanton)}</li>`;
           } else if(notizen){
             detailHtml = `<li class="analyse-detail-row" id="analyse-detail-${i}"><div class="analyse-detail">${notizen.map(n => `<div class="remark"><div class="rlabel">${escapeHtml(n.label)}</div>${escapeHtml(n.text)}</div>`).join('')}</div></li>`;
           }
