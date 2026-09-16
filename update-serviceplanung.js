@@ -44,9 +44,24 @@ function cleanZeit(v) {
     const mm = String(v.getUTCMinutes()).padStart(2, '0');
     return `${hh}${mm}`;
   }
-  const s = String(v).trim();
+  let s = String(v).trim();
   if (!s || s.toLowerCase() === 'nan' || s.toLowerCase() === 'nat') return null;
-  return s;
+  // Dezimalzeit (0.xxx) → korrekte Uhrzeit
+  const dezMatch = s.match(/^0[.,](\d+)$/);
+  if (dezMatch) {
+    const frac = parseFloat('0.' + dezMatch[1]);
+    const totalMin = Math.round(frac * 24 * 60);
+    return String(Math.floor(totalMin / 60)).padStart(2, '0') + String(totalMin % 60).padStart(2, '0');
+  }
+  // Dezimalminuten (z.B. 1280 = 12h + 0.80*60min) korrigieren
+  const digits = s.replace(/\D/g, '').padStart(4, '0');
+  const mm = parseInt(digits.slice(2, 4), 10);
+  if (mm >= 60) {
+    const hh = parseInt(digits.slice(0, 2), 10);
+    const echteMin = Math.round(mm / 100 * 60);
+    return String(hh).padStart(2, '0') + String(echteMin).padStart(2, '0');
+  }
+  return digits;
 }
 
 function clean(v) {

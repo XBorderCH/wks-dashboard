@@ -155,11 +155,11 @@
   .chip-clickable:active{filter:brightness(0.9);}
 
   /* ---- Tagestour-Modal ---- */
-  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay{
+  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay, #avisierung-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
     align-items:center;justify-content:center;padding:20px;
   }
-  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open{display:flex;}
+  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open, #avisierung-overlay.open{display:flex;}
   .modal-card{
     background:var(--surface);border-radius:12px;max-width:440px;width:100%;
     max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(20,30,26,0.2);
@@ -301,6 +301,33 @@
   .gw-zeile.gw-zusatz .gw-label{color:var(--amber);}
   .gw-zeile.gw-footer{color:var(--ink-soft);font-size:13.5px;}
   .gw-trenn{height:1px;background:var(--line);margin:8px 0;}
+
+  /* ---- Avisierung ---- */
+  .avis-tabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:4px;}
+  .avis-tab{
+    flex:1;padding:10px;text-align:center;font-size:13px;font-weight:600;
+    background:none;border:none;color:var(--ink-soft);cursor:pointer;font-family:inherit;
+    border-bottom:2px solid transparent;margin-bottom:-2px;
+  }
+  .avis-tab.active{color:var(--accent-ink);border-bottom-color:var(--accent);}
+  .avis-section-title{font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-soft);padding:12px 10px 4px;font-weight:600;}
+  .avis-item{
+    padding:12px 10px;border-bottom:1px solid #F0F3F1;
+  }
+  .avis-item:last-child{border-bottom:none;}
+  .avis-row1{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .avis-name{font-weight:600;font-size:14px;flex:1;}
+  .avis-badge{
+    font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;white-space:nowrap;
+  }
+  .avis-badge.heute{background:#FFF3E0;color:#E65100;}
+  .avis-badge.bald{background:#E8F5E9;color:#2E7D32;}
+  .avis-badge.spaeter{background:var(--bg);color:var(--ink-soft);}
+  .avis-badge.versendet{background:#E8F5E9;color:#2E7D32;}
+  .avis-row2{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  .avis-row2 strong{color:var(--ink);font-weight:600;}
+  .avis-mail{font-size:12px;color:var(--accent-ink);margin-top:2px;}
+  .avis-count{font-size:12px;color:var(--ink-soft);padding:10px 10px 4px;border-bottom:1px solid var(--line);}
   .route-summary{
     margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
     font-size:14px;color:var(--ink-soft);
@@ -504,6 +531,9 @@
         <button type="button" class="logo-menu-item" data-menu="grenzwerte">
           <span>Grenzwerte</span>
         </button>
+        <button type="button" class="logo-menu-item" data-menu="avisierung">
+          <span>Avisierung</span>
+        </button>
       </div>
     </div>
     <div class="search-wrap">
@@ -574,6 +604,16 @@
       <button class="modal-close" id="grenzwerte-close">&times;</button>
     </div>
     <div class="modal-body" id="grenzwerte-body"></div>
+  </div>
+</div>
+
+<div id="avisierung-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="avisierung-title">Avisierung</h3>
+      <button class="modal-close" id="avisierung-close">&times;</button>
+    </div>
+    <div class="modal-body" id="avisierung-body"></div>
   </div>
 </div>
 
@@ -1422,6 +1462,7 @@ if(logoBtn){
       if(menu === 'lager') openLager();
       if(menu === 'schieber') openSchieber();
       if(menu === 'grenzwerte') openGrenzwerte();
+      if(menu === 'avisierung') openAvisierung();
     });
   });
 }
@@ -1779,6 +1820,81 @@ function closeGrenzwerte(){
 $('#grenzwerte-close').addEventListener('click', closeGrenzwerte);
 $('#grenzwerte-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'grenzwerte-overlay') closeGrenzwerte();
+});
+
+// ---- Avisierung ----
+async function openAvisierung(){
+  const overlay = $('#avisierung-overlay');
+  $('#avisierung-title').textContent = 'Avisierung';
+  $('#avisierung-body').innerHTML = '<div class="modal-empty">Lade…</div>';
+  overlay.classList.add('open');
+
+  try{
+    const r = await fetch('/api/avisierung');
+    const d = await r.json();
+    const alle = d.eintraege || [];
+
+    // Gruppierung: Überfällig (< 0 Tage), Heute (0), Nächste 7 Tage, Später
+    const ueberfaellig = alle.filter(e => e.tageBisAvisierung < 0 && e.tageVorTermin >= 0);
+    const heute = alle.filter(e => e.tageBisAvisierung === 0);
+    const naechste7 = alle.filter(e => e.tageBisAvisierung > 0 && e.tageBisAvisierung <= 7);
+    const spaeter = alle.filter(e => e.tageBisAvisierung > 7);
+
+    function renderItem(e){
+      let badge = '';
+      if(e.tageBisAvisierung < 0) badge = `<span class="avis-badge heute">Überfällig (${Math.abs(e.tageBisAvisierung)} T.)</span>`;
+      else if(e.tageBisAvisierung === 0) badge = `<span class="avis-badge heute">Heute</span>`;
+      else if(e.tageBisAvisierung <= 7) badge = `<span class="avis-badge bald">In ${e.tageBisAvisierung} T.</span>`;
+      else badge = `<span class="avis-badge spaeter">In ${e.tageBisAvisierung} T.</span>`;
+
+      return `<div class="avis-item">
+        <div class="avis-row1">
+          <span class="avis-name">${escapeHtml(e.kdnrName)}</span>
+          ${badge}
+        </div>
+        <div class="avis-row2">
+          Service: <strong>${escapeHtml(e.terminDatum)}</strong>${e.zeitfenster ? ` · ${escapeHtml(e.zeitfenster)}` : ''}
+          ${e.fahrer ? ` · ${escapeHtml(e.fahrer)}` : ''}
+        </div>
+        <div class="avis-row2">Avisierung am: <strong>${escapeHtml(e.avisierungsDatum)}</strong></div>
+        <div class="avis-mail">${escapeHtml(e.mail)}</div>
+      </div>`;
+    }
+
+    let html = `<div class="avis-count">${alle.length} Avisierungen geplant (Kunden mit hinterlegter Mail)</div>`;
+
+    if(ueberfaellig.length){
+      html += `<div class="avis-section-title">Überfällig</div>`;
+      html += ueberfaellig.map(renderItem).join('');
+    }
+    if(heute.length){
+      html += `<div class="avis-section-title">Heute zu versenden</div>`;
+      html += heute.map(renderItem).join('');
+    }
+    if(naechste7.length){
+      html += `<div class="avis-section-title">Nächste 7 Tage</div>`;
+      html += naechste7.map(renderItem).join('');
+    }
+    if(spaeter.length){
+      html += `<div class="avis-section-title">Später</div>`;
+      html += spaeter.map(renderItem).join('');
+    }
+    if(!alle.length){
+      html = '<div class="modal-empty">Keine Avisierungen geplant (keine zukünftigen Termine mit hinterlegter Mail).</div>';
+    }
+
+    $('#avisierung-body').innerHTML = html;
+  }catch(err){
+    $('#avisierung-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
+  }
+}
+
+function closeAvisierung(){
+  $('#avisierung-overlay').classList.remove('open');
+}
+$('#avisierung-close').addEventListener('click', closeAvisierung);
+$('#avisierung-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'avisierung-overlay') closeAvisierung();
 });
 
 checkSession();

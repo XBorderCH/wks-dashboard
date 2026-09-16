@@ -11980,6 +11980,30 @@
             "text": "Hr. Buser 079 233 74 23"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "730",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Hr. Buser 079 233 74 23"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "0730",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Hr. Buser 079 233 74 23"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -12525,21 +12549,33 @@
     },
     "termine": [
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "01.12.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "0830",
         "datum": "12.09.2025"
       },
       {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "01.12.2025"
+      },
+      {
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "16.03.2026",
         "zeit": "0830"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "0830"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "830"
       },
       {
         "halbjahr": "2",
@@ -13496,6 +13532,18 @@
         "jahr": "2026",
         "datum": "20.08.2026",
         "zeit": "1000"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1000"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1000"
       }
     ],
     "gebuehren": [
@@ -14059,6 +14107,30 @@
         "jahr": "2026",
         "datum": "16.03.2026",
         "zeit": "1015"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1015",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "TOC muss bestimmt werden, Bitte ca. 1 Std. vorher anrufen auf 079 666 24 49"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1015",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "TOC muss bestimmt werden, Bitte ca. 1 Std. vorher anrufen auf 079 666 24 49"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -14693,6 +14765,30 @@
             "text": "TOC muss bestimmt werden"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1120",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "TOC muss bestimmt werden"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1120",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "TOC muss bestimmt werden"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -15307,6 +15403,18 @@
         "jahr": "2026",
         "datum": "20.08.2026",
         "zeit": "1220"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1220"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1220"
       }
     ],
     "gebuehren": [
@@ -15873,6 +15981,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "16.03.2026",
+        "zeit": "1430"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1430"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
         "zeit": "1430"
       },
       {
@@ -16480,6 +16600,30 @@
         "jahr": "2026",
         "datum": "16.03.2026",
         "zeit": "1540"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1540",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Haken sind letztes Mal liegen geblieben. Tochter ist ab 15.30 Uhr vor Ort."
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "20.08.2026",
+        "zeit": "1540",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Haken sind letztes Mal liegen geblieben. Tochter ist ab 15.30 Uhr vor Ort."
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -18591,15 +18735,15 @@
         "datum": "12.1.223"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2024",
-        "datum": "7.3.224",
-        "zeit": "0913"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2024",
         "datum": "22.1.224",
+        "zeit": "0913"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2024",
+        "datum": "7.3.224",
         "zeit": "0913"
       },
       {
@@ -22568,6 +22712,18 @@
         "jahr": "2026",
         "datum": "27.08.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -23156,6 +23312,18 @@
         "jahr": "2026",
         "datum": "17.03.2026",
         "zeit": "0810"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "0810"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "810"
       },
       {
         "halbjahr": "2",
@@ -23764,6 +23932,18 @@
         "jahr": "2026",
         "datum": "27.08.2026",
         "zeit": "0853"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "853"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "0853"
       }
     ],
     "gebuehren": [
@@ -24363,6 +24543,18 @@
         "jahr": "2026",
         "datum": "27.08.2026",
         "zeit": "0933"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "933"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "0933"
       }
     ],
     "gebuehren": [
@@ -24931,6 +25123,18 @@
         "jahr": "2026",
         "datum": "27.08.2026",
         "zeit": "1015"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1015"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1015"
       }
     ],
     "gebuehren": [
@@ -25428,6 +25632,30 @@
         "jahr": "2026",
         "datum": "17.03.2026",
         "zeit": "1100"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1100",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "2/25: kleine Schlauchverbinder mitnehmen"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1100",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "2/25: kleine Schlauchverbinder mitnehmen"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -26473,6 +26701,18 @@
         "jahr": "2026",
         "datum": "27.08.2026",
         "zeit": "1230"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1230"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1230"
       }
     ],
     "gebuehren": [
@@ -27077,6 +27317,18 @@
         "jahr": "2026",
         "datum": "27.08.2026",
         "zeit": "1325"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1325"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "27.08.2026",
+        "zeit": "1325"
       }
     ],
     "gebuehren": [
@@ -27606,7 +27858,7 @@
       "fahrer": "Kathrin",
       "tag": "Do",
       "datS": "27.08.2026",
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": "27.08.2026",
       "zeit226": "1410",
       "datAvis": "04.08.2026",
@@ -29541,9 +29793,9 @@
       "fahrer": "Kathrin",
       "tag": "Do",
       "datS": "22.10.2026",
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": "22.10.2026",
-      "zeit226": null,
+      "zeit226": "0000",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -29552,7 +29804,7 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "22.10.2026",
-        "zeit": null
+        "zeit": "0000"
       }
     ],
     "gebuehren": [
@@ -42136,7 +42388,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "0715"
+        "zeit": "0.3020833333333333"
       }
     ],
     "gebuehren": [
@@ -42602,7 +42854,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "0747"
+        "zeit": "0.3243055555555555"
       }
     ],
     "gebuehren": [
@@ -43058,7 +43310,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "0819"
+        "zeit": "0.3465277777777777"
       }
     ],
     "gebuehren": [
@@ -43514,7 +43766,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "0850"
+        "zeit": "0.36805555555555547"
       }
     ],
     "gebuehren": [
@@ -43975,7 +44227,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "0933"
+        "zeit": "0.3979166666666666"
       }
     ],
     "gebuehren": [
@@ -44390,7 +44642,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "1011"
+        "zeit": "0.42430555555555544"
       }
     ],
     "gebuehren": [
@@ -44707,7 +44959,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "1057"
+        "zeit": "0.4562499999999999"
       }
     ],
     "gebuehren": [
@@ -45045,7 +45297,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "1153"
+        "zeit": "0.49513888888888874"
       }
     ],
     "gebuehren": [
@@ -45470,7 +45722,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "1300"
+        "zeit": "0.5416666666666666"
       }
     ],
     "gebuehren": [
@@ -45894,6 +46146,12 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1446"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "01.09.2026",
+        "zeit": "0.6152777777777777"
       }
     ],
     "gebuehren": [
@@ -46360,7 +46618,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "1527"
+        "zeit": "0.6437499999999998"
       }
     ],
     "gebuehren": [
@@ -46683,7 +46941,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.09.2026",
-        "zeit": "1638",
+        "zeit": "0.6930555555555553",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -47303,7 +47561,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0715",
+        "zeit": "0.3020833333333333",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -47630,7 +47888,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0822"
+        "zeit": "0.3486111111111111"
       }
     ],
     "gebuehren": [
@@ -47957,7 +48215,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0918"
+        "zeit": "0.38749999999999996"
       }
     ],
     "gebuehren": [
@@ -48372,7 +48630,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "1035"
+        "zeit": "0.44097222222222215"
       }
     ],
     "gebuehren": [
@@ -48793,7 +49051,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "1304"
+        "zeit": "0.5444444444444444"
       }
     ],
     "gebuehren": [
@@ -49239,7 +49497,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "1348"
+        "zeit": "0.5749999999999998"
       }
     ],
     "gebuehren": [
@@ -49980,7 +50238,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "0715"
+        "zeit": "0.3020833333333333"
       }
     ],
     "gebuehren": [
@@ -50446,7 +50704,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "0748"
+        "zeit": "0.32499999999999996"
       }
     ],
     "gebuehren": [
@@ -50897,7 +51155,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "0822"
+        "zeit": "0.34861111111111104"
       }
     ],
     "gebuehren": [
@@ -51352,7 +51610,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "0853"
+        "zeit": "0.3701388888888888"
       }
     ],
     "gebuehren": [
@@ -51794,7 +52052,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "0935"
+        "zeit": "0.39930555555555547"
       }
     ],
     "gebuehren": [
@@ -52288,7 +52546,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1017",
+        "zeit": "0.42847222222222214",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -52737,7 +52995,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1052"
+        "zeit": "0.45277777777777767"
       }
     ],
     "gebuehren": [
@@ -53199,7 +53457,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1123",
+        "zeit": "0.4743055555555554",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -53666,7 +53924,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1154"
+        "zeit": "0.4958333333333332"
       }
     ],
     "gebuehren": [
@@ -54122,7 +54380,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1300"
+        "zeit": "0.5416666666666666"
       }
     ],
     "gebuehren": [
@@ -54574,7 +54832,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1344"
+        "zeit": "0.5722222222222221"
       }
     ],
     "gebuehren": [
@@ -55035,7 +55293,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1429"
+        "zeit": "0.603472222222222"
       }
     ],
     "gebuehren": [
@@ -55581,7 +55839,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.09.2026",
-        "zeit": "1525",
+        "zeit": "0.6423611111111108",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -56358,6 +56616,18 @@
         "jahr": "2026",
         "datum": "03.09.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -56959,6 +57229,18 @@
         "jahr": "2026",
         "datum": "23.03.2026",
         "zeit": "0855"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "0855"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "855"
       },
       {
         "halbjahr": "2",
@@ -57601,6 +57883,30 @@
             "text": "Links von der Haustür befindet sich der Stall. Die Tür öffnen (oben den Riegel schieben, am Strick ziehen); Linker Hand befindet sich auf Augenhöhe ein schwarzes Schlüsselkästchen. Der Code lautet 9104. Mit dem enthaltenen Schlüssel lässt sich die Haustür öffnen, rechter Hand befindet sich der Schaltkasten."
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "815",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Links von der Haustür befindet sich der Stall. Die Tür öffnen (oben den Riegel schieben, am Strick ziehen); Linker Hand befindet sich auf Augenhöhe ein schwarzes Schlüsselkästchen. Der Code lautet 9104. Mit dem enthaltenen Schlüssel lässt sich die Haustür öffnen, rechter Hand befindet sich der Schaltkasten."
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "0815",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Links von der Haustür befindet sich der Stall. Die Tür öffnen (oben den Riegel schieben, am Strick ziehen); Linker Hand befindet sich auf Augenhöhe ein schwarzes Schlüsselkästchen. Der Code lautet 9104. Mit dem enthaltenen Schlüssel lässt sich die Haustür öffnen, rechter Hand befindet sich der Schaltkasten."
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -58226,6 +58532,18 @@
         "jahr": "2026",
         "datum": "03.09.2026",
         "zeit": "0940"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "940"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "0940"
       }
     ],
     "gebuehren": [
@@ -58814,6 +59132,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "23.03.2026",
+        "zeit": "1030"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1030"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
         "zeit": "1030"
       },
       {
@@ -59992,6 +60322,18 @@
         "jahr": "2026",
         "datum": "03.09.2026",
         "zeit": "1155"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1155"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1155"
       }
     ],
     "gebuehren": [
@@ -60585,6 +60927,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "23.03.2026",
+        "zeit": "1325"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1325"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
         "zeit": "1325"
       },
       {
@@ -61200,6 +61554,18 @@
         "jahr": "2026",
         "datum": "03.09.2026",
         "zeit": "1240"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1240"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1240"
       }
     ],
     "gebuehren": [
@@ -61808,6 +62174,18 @@
         "jahr": "2026",
         "datum": "03.09.2026",
         "zeit": "1410"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1410"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1410"
       }
     ],
     "gebuehren": [
@@ -62395,6 +62773,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "23.03.2026",
+        "zeit": "1500"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
+        "zeit": "1500"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "03.09.2026",
         "zeit": "1500"
       },
       {
@@ -63285,6 +63675,18 @@
         "jahr": "2026",
         "datum": "07.09.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -63900,6 +64302,18 @@
         "jahr": "2026",
         "datum": "07.09.2026",
         "zeit": "0815"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "815"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "0815"
       }
     ],
     "gebuehren": [
@@ -64491,6 +64905,30 @@
         "jahr": "2026",
         "datum": "24.03.2026",
         "zeit": "0900"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "0900",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "SP28"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "900",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "SP28"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -65124,6 +65562,18 @@
         "jahr": "2026",
         "datum": "07.09.2026",
         "zeit": "0950"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "950"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "0950"
       }
     ],
     "gebuehren": [
@@ -65718,6 +66168,30 @@
         "jahr": "2026",
         "datum": "24.03.2026",
         "zeit": "1030"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1030",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Bei Störungen immer Vrony anrufen"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1030",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Bei Störungen immer Vrony anrufen"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -66330,6 +66804,18 @@
         "jahr": "2026",
         "datum": "07.09.2026",
         "zeit": "1150"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1150"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1150"
       }
     ],
     "gebuehren": [
@@ -66859,9 +67345,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "07.09.2026",
-      "zeitS": "1265",
+      "zeitS": "1239",
       "dat226": "07.09.2026",
-      "zeit226": "1265",
+      "zeit226": "1239",
       "datAvis": null,
       "zustKt": "AR"
     },
@@ -66909,13 +67395,25 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "24.03.2026",
-        "zeit": "1265"
+        "zeit": "0302"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "0302"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "07.09.2026",
         "zeit": "1265"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1239"
       }
     ],
     "gebuehren": [
@@ -67503,6 +68001,18 @@
         "jahr": "2026",
         "datum": "07.09.2026",
         "zeit": "1110"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1110"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1110"
       }
     ],
     "gebuehren": [
@@ -68007,6 +68517,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "24.03.2026",
+        "zeit": "1355"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
+        "zeit": "1355"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "07.09.2026",
         "zeit": "1355"
       },
       {
@@ -68887,6 +69409,18 @@
         "jahr": "2026",
         "datum": "08.09.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -69499,6 +70033,18 @@
         "jahr": "2026",
         "datum": "08.09.2026",
         "zeit": "0820"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "820"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0820"
       }
     ],
     "gebuehren": [
@@ -70062,6 +70608,30 @@
         "jahr": "2026",
         "datum": "25.03.2026",
         "zeit": "0900"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0900",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Wenn nächste Kontrolle schlecht, mit 2 Joghurtbecher Kalk pro Woche beginnen."
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "900",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Wenn nächste Kontrolle schlecht, mit 2 Joghurtbecher Kalk pro Woche beginnen."
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -70680,6 +71250,38 @@
             "text": "wenn möglich 13.00 Uhr"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "945",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "wenn möglich 13.00 Uhr"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "wenn möglich 13.00 Uhr"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0945",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "wenn möglich 13.00 Uhr"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "wenn möglich 13.00 Uhr"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -71221,6 +71823,18 @@
         "jahr": "2026",
         "datum": "08.09.2026",
         "zeit": "0955"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "955"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0955"
       }
     ],
     "gebuehren": [
@@ -71731,6 +72345,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "25.03.2026",
+        "zeit": "1035"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "1035"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
         "zeit": "1035"
       },
       {
@@ -72325,6 +72951,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "25.03.2026",
+        "zeit": "1120"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "1120"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
         "zeit": "1120"
       },
       {
@@ -72937,6 +73575,30 @@
             "text": "macht Rep. selber, Belüftungsanlage müssen wir machen"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "1235",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "macht Rep. selber, Belüftungsanlage müssen wir machen"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "1235",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "macht Rep. selber, Belüftungsanlage müssen wir machen"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -73469,9 +74131,9 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "08.09.2026",
-      "zeitS": "1280",
+      "zeitS": "1248",
       "dat226": "08.09.2026",
-      "zeit226": "1280",
+      "zeit226": "1248",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -73519,13 +74181,25 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "25.03.2026",
-        "zeit": "1280"
+        "zeit": "0304"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0304"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "08.09.2026",
         "zeit": "1280"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "1248"
       }
     ],
     "gebuehren": [
@@ -74068,9 +74742,9 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "08.09.2026",
-      "zeitS": "1360",
+      "zeitS": "1336",
       "dat226": "08.09.2026",
-      "zeit226": "1360",
+      "zeit226": "1336",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -74118,13 +74792,25 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "25.03.2026",
-        "zeit": "1360"
+        "zeit": "0316"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "0316"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "08.09.2026",
         "zeit": "1360"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "08.09.2026",
+        "zeit": "1336"
       }
     ],
     "gebuehren": [
@@ -75015,6 +75701,30 @@
             "text": "wird anschliessen müssen gem. AFU vom 2.9.24"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "730",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "wird anschliessen müssen gem. AFU vom 2.9.24"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "0730",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "wird anschliessen müssen gem. AFU vom 2.9.24"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -75583,6 +76293,38 @@
         "jahr": "2026",
         "datum": "02.04.2026",
         "zeit": "0830"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "0830",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "zusätzlich gesamt Phosphor messen!"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "zusätzlich gesamt Phosphor messen!"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "830",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "zusätzlich gesamt Phosphor messen!"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "zusätzlich gesamt Phosphor messen!"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -76189,6 +76931,18 @@
         "jahr": "2026",
         "datum": "02.04.2026",
         "zeit": "0930"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "0930"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "930"
       },
       {
         "halbjahr": "2",
@@ -76811,6 +77565,18 @@
         "jahr": "2026",
         "datum": "09.09.2026",
         "zeit": "1015"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1015"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1015"
       }
     ],
     "gebuehren": [
@@ -77391,6 +78157,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "02.04.2026",
+        "zeit": "1115"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1115"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
         "zeit": "1115"
       },
       {
@@ -78016,6 +78794,18 @@
         "jahr": "2026",
         "datum": "09.09.2026",
         "zeit": "1200"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1200"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1200"
       }
     ],
     "gebuehren": [
@@ -78554,6 +79344,18 @@
         "jahr": "2026",
         "datum": "09.09.2026",
         "zeit": "1330"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1330"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1330"
       }
     ],
     "gebuehren": [
@@ -79002,9 +79804,9 @@
       "fahrer": "Kathrin",
       "tag": "Mi",
       "datS": "09.09.2026",
-      "zeitS": "1380",
+      "zeitS": "1348",
       "dat226": "09.09.2026",
-      "zeit226": "1380",
+      "zeit226": "1348",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -79039,7 +79841,7 @@
       {
         "halbjahr": "1",
         "jahr": "2025",
-        "zeit": "1366",
+        "zeit": "0317",
         "datum": "13.03.2025"
       },
       {
@@ -79052,7 +79854,7 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "09.09.2026",
-        "zeit": "1380"
+        "zeit": "1348"
       }
     ],
     "gebuehren": [
@@ -79536,9 +80338,9 @@
       "fahrer": "Kathrin",
       "tag": "Mi",
       "datS": "09.09.2026",
-      "zeitS": "1460",
+      "zeitS": "1436",
       "dat226": "09.09.2026",
-      "zeit226": "1460",
+      "zeit226": "1436",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -79586,13 +80388,25 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "02.04.2026",
-        "zeit": "1460"
+        "zeit": "0330"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "0330"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "09.09.2026",
         "zeit": "1460"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1436"
       }
     ],
     "gebuehren": [
@@ -80203,6 +81017,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "02.04.2026",
+        "zeit": "1540"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
+        "zeit": "1540"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "09.09.2026",
         "zeit": "1540"
       },
       {
@@ -81084,6 +81910,18 @@
         "jahr": "2026",
         "datum": "11.09.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -81655,6 +82493,30 @@
         "jahr": "2026",
         "datum": "07.04.2026",
         "zeit": "0830"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "0830",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "In Tiefgarage die mittleren 2 Parkplätze links sind Schmid"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "830",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "In Tiefgarage die mittleren 2 Parkplätze links sind Schmid"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -82252,6 +83114,18 @@
         "jahr": "2026",
         "datum": "07.04.2026",
         "zeit": "0955"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "0955"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "955"
       },
       {
         "halbjahr": "2",
@@ -82863,6 +83737,30 @@
             "text": "2/25: 1/2 Std. Vor Service Bruder anrufen auf 079 676 07 14"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1105",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "2/25: 1/2 Std. Vor Service Bruder anrufen auf 079 676 07 14"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1105",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "2/25: 1/2 Std. Vor Service Bruder anrufen auf 079 676 07 14"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -83453,7 +84351,7 @@
       {
         "halbjahr": "1",
         "jahr": "2025",
-        "zeit": "1265",
+        "zeit": "0302",
         "datum": "09.04.2025"
       },
       {
@@ -83466,6 +84364,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "07.04.2026",
+        "zeit": "1205"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1205"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
         "zeit": "1205"
       },
       {
@@ -84065,6 +84975,30 @@
             "text": "Kompressor zum Ausblasen"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1330",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Kompressor zum Ausblasen"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1330",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Kompressor zum Ausblasen"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -84595,6 +85529,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "07.04.2026",
+        "zeit": "1410"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1410"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
         "zeit": "1410"
       },
       {
@@ -85203,6 +86149,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "07.04.2026",
+        "zeit": "1430"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
+        "zeit": "1430"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "11.09.2026",
         "zeit": "1430"
       },
       {
@@ -90329,9 +91287,9 @@
       "fahrer": "Kathrin",
       "tag": "Do",
       "datS": "01.10.2026",
-      "zeitS": "1275",
+      "zeitS": "1245",
       "dat226": "01.10.2026",
-      "zeit226": "1275",
+      "zeit226": "1245",
       "datAvis": null,
       "zustKt": "AR"
     },
@@ -90379,13 +91337,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "08.04.2026",
-        "zeit": "1275"
+        "zeit": "0304"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.10.2026",
-        "zeit": "1275"
+        "zeit": "1245"
       }
     ],
     "gebuehren": [
@@ -90933,9 +91891,9 @@
       "fahrer": "Kathrin",
       "tag": "Do",
       "datS": "01.10.2026",
-      "zeitS": "1360",
+      "zeitS": "1336",
       "dat226": "01.10.2026",
-      "zeit226": "1360",
+      "zeit226": "1336",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -90983,13 +91941,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "08.04.2026",
-        "zeit": "1360"
+        "zeit": "0316"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "01.10.2026",
-        "zeit": "1360"
+        "zeit": "1336"
       }
     ],
     "gebuehren": [
@@ -92486,6 +93444,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -93072,6 +94042,18 @@
         "jahr": "2026",
         "datum": "09.04.2026",
         "zeit": "0815"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0815"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "815"
       },
       {
         "halbjahr": "2",
@@ -93678,6 +94660,18 @@
         "jahr": "2026",
         "datum": "09.04.2026",
         "zeit": "0900"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0900"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "900"
       },
       {
         "halbjahr": "2",
@@ -94297,6 +95291,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "0950"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "950"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0950"
       }
     ],
     "gebuehren": [
@@ -94873,6 +95879,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "09.04.2026",
+        "zeit": "1045"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1045"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
         "zeit": "1045"
       },
       {
@@ -95480,6 +96498,30 @@
             "text": "Fisack, Umbau Typ WKS?"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1140",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Fisack, Umbau Typ WKS?"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1140",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Fisack, Umbau Typ WKS?"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -96075,6 +97117,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1255"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1255"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1255"
       }
     ],
     "gebuehren": [
@@ -96586,7 +97640,7 @@
       "datS": "15.09.2026",
       "zeitS": "1340",
       "dat226": "15.09.2026",
-      "zeit226": null,
+      "zeit226": "0000",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -96601,7 +97655,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "15.09.2026",
-        "zeit": null
+        "zeit": "0000"
       }
     ],
     "gebuehren": [
@@ -96906,7 +97960,7 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1385",
+      "zeitS": "1351",
       "dat226": "15.09.2026",
       "zeit226": "1340",
       "datAvis": null,
@@ -96923,7 +97977,39 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "09.04.2026",
-        "zeit": "1385"
+        "zeit": "0319"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1340",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Code: 199"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "Code: 199"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1340",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Code: 199"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "Code: 199"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -96945,7 +98031,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "15.09.2026",
-        "zeit": "1340",
+        "zeit": "1351",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -97374,7 +98460,7 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1480",
+      "zeitS": "1448",
       "dat226": "15.09.2026",
       "zeit226": "1435",
       "datAvis": null,
@@ -97385,7 +98471,31 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "09.04.2026",
-        "zeit": "1480"
+        "zeit": "0333"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1435",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/26: kann erst ab 15.00 Uhr zu Hause sein"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1435",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/26: kann erst ab 15.00 Uhr zu Hause sein"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -97403,7 +98513,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "15.09.2026",
-        "zeit": "1435",
+        "zeit": "1448",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -102385,9 +103495,9 @@
       "fahrer": "Kathrin",
       "tag": "Mi",
       "datS": "16.09.2026",
-      "zeitS": "1270",
+      "zeitS": "1242",
       "dat226": "16.09.2026",
-      "zeit226": "1270",
+      "zeit226": "1242",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -102435,13 +103545,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "09.04.2026",
-        "zeit": "1270"
+        "zeit": "0303"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "16.09.2026",
-        "zeit": "1270"
+        "zeit": "1242"
       }
     ],
     "gebuehren": [
@@ -104163,9 +105273,9 @@
       "fahrer": "Kathrin",
       "tag": "Mi",
       "datS": "16.09.2026",
-      "zeitS": "1480",
+      "zeitS": "1448",
       "dat226": "16.09.2026",
-      "zeit226": "1480",
+      "zeit226": "1448",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -104213,13 +105323,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "09.04.2026",
-        "zeit": "1480"
+        "zeit": "0333"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "16.09.2026",
-        "zeit": "1480"
+        "zeit": "1448"
       }
     ],
     "gebuehren": [
@@ -105094,6 +106204,18 @@
         "jahr": "2026",
         "datum": "21.08.2026",
         "zeit": "0730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "730"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -105704,6 +106826,18 @@
         "jahr": "2026",
         "datum": "10.04.2026",
         "zeit": "0815"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "0815"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "815"
       },
       {
         "halbjahr": "2",
@@ -106330,6 +107464,18 @@
         "jahr": "2026",
         "datum": "21.08.2026",
         "zeit": "0855"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "855"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "0855"
       }
     ],
     "gebuehren": [
@@ -106946,6 +108092,18 @@
         "jahr": "2026",
         "datum": "21.08.2026",
         "zeit": "0935"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "935"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "0935"
       }
     ],
     "gebuehren": [
@@ -107554,6 +108712,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "10.04.2026",
+        "zeit": "1020"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "1020"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
         "zeit": "1020"
       },
       {
@@ -108187,6 +109357,30 @@
             "text": "8.9.25 Meldung: Probleme mit der Quelle/Wasserzuleitung"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "1105",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "8.9.25 Meldung: Probleme mit der Quelle/Wasserzuleitung"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "1105",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "8.9.25 Meldung: Probleme mit der Quelle/Wasserzuleitung"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -108803,6 +109997,18 @@
         "jahr": "2026",
         "datum": "21.08.2026",
         "zeit": "1150"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "1150"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "1150"
       }
     ],
     "gebuehren": [
@@ -109402,6 +110608,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "10.04.2026",
+        "zeit": "1240"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
+        "zeit": "1240"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "21.08.2026",
         "zeit": "1240"
       },
       {
@@ -110268,6 +111486,18 @@
         "jahr": "2026",
         "datum": "14.09.2026",
         "zeit": "0715"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "715"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "0715"
       }
     ],
     "gebuehren": [
@@ -110870,6 +112100,38 @@
         "jahr": "2026",
         "datum": "04.05.2026",
         "zeit": "0811"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "0811",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/27: Flügelkontrolle"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "1/27: Flügelkontrolle"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "811",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/27: Flügelkontrolle"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "1/27: Flügelkontrolle"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -111518,6 +112780,18 @@
         "jahr": "2026",
         "datum": "14.09.2026",
         "zeit": "0920"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "920"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "0920"
       }
     ],
     "gebuehren": [
@@ -112138,6 +113412,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "04.05.2026",
+        "zeit": "1002"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1002"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
         "zeit": "1002"
       },
       {
@@ -112778,6 +114064,38 @@
             "text": "1/28: Flügelkontrolle"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1105",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/28: Flügelkontrolle"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "1/28: Flügelkontrolle"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1105",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/28: Flügelkontrolle"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "1/28: Flügelkontrolle"
+          }
+        ]
       }
     ],
     "gebuehren": [
@@ -113345,6 +114663,30 @@
         "jahr": "2026",
         "datum": "04.05.2026",
         "zeit": "1211"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1211",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/26: 15 Min. vor Ort anrufen für Treffpunkt!"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1211",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "1/26: 15 Min. vor Ort anrufen für Treffpunkt!"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -114147,6 +115489,18 @@
         "jahr": "2026",
         "datum": "14.09.2026",
         "zeit": "1532"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1532"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1532"
       }
     ],
     "gebuehren": [
@@ -114765,6 +116119,38 @@
         "jahr": "2026",
         "datum": "04.05.2026",
         "zeit": "1711"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1711",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Vorgänger Lauper, Schlüssel bei WKS!, nächste Flügelkontrolle 1/25"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "Vorgänger Lauper, Schlüssel bei WKS!, nächste Flügelkontrolle 1/25"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1711",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Vorgänger Lauper, Schlüssel bei WKS!, nächste Flügelkontrolle 1/25"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "Vorgänger Lauper, Schlüssel bei WKS!, nächste Flügelkontrolle 1/25"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -116035,6 +117421,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "0715"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "715"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0715"
       }
     ],
     "gebuehren": [
@@ -116493,6 +117891,18 @@
         "jahr": "2026",
         "datum": "05.05.2026",
         "zeit": "0806"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0806"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "806"
       },
       {
         "halbjahr": "2",
@@ -117060,6 +118470,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "0842"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "842"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0842"
       }
     ],
     "gebuehren": [
@@ -117430,6 +118852,18 @@
         "jahr": "2026",
         "datum": "05.05.2026",
         "zeit": "0930"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "0930"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "930"
       },
       {
         "halbjahr": "2",
@@ -118296,7 +119730,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1105",
+      "zeitS": "1035",
       "dat226": "15.09.2026",
       "zeit226": "1035",
       "datAvis": null,
@@ -118353,6 +119787,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1105"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1035"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1035"
       }
     ],
     "gebuehren": [
@@ -118892,7 +120338,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1145",
+      "zeitS": "1115",
       "dat226": "15.09.2026",
       "zeit226": "1115",
       "datAvis": null,
@@ -118906,21 +120352,21 @@
         "zeit": "1050"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "15.10.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "1020",
         "datum": "23.09.2025"
       },
       {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "15.10.2025"
+      },
+      {
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "15.09.2026",
-        "zeit": "1145"
+        "zeit": "1115"
       }
     ],
     "gebuehren": [
@@ -119330,7 +120776,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1300",
+      "zeitS": "1245",
       "dat226": "15.09.2026",
       "zeit226": "1245",
       "datAvis": null,
@@ -119387,6 +120833,38 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1300",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Code: 0911"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "Code: 0911"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1245",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Code: 0911"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "Code: 0911"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1245",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -119954,7 +121432,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1331",
+      "zeitS": "1346",
       "dat226": "15.09.2026",
       "zeit226": "1346",
       "datAvis": null,
@@ -120011,6 +121489,38 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1331",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "2/24: Leihkompressor gebracht"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "2/24: Leihkompressor gebracht"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1346",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "2/24: Leihkompressor gebracht"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "2/24: Leihkompressor gebracht"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1346",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -120597,7 +122107,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1531",
+      "zeitS": "1429",
       "dat226": "15.09.2026",
       "zeit226": "1429",
       "datAvis": null,
@@ -120654,6 +122164,38 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1531",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "nächste Schieberkontrolle 2/28"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "nächste Schieberkontrolle 2/28"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1429",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "nächste Schieberkontrolle 2/28"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "nächste Schieberkontrolle 2/28"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1429",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -121218,7 +122760,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1620",
+      "zeitS": "1518",
       "dat226": "15.09.2026",
       "zeit226": "1518",
       "datAvis": null,
@@ -121275,6 +122817,38 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1620",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "SP27"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "SP27"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1518",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "SP27"
+          },
+          {
+            "label": "Letzter Service",
+            "text": "SP27"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1518",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -121834,7 +123408,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1723",
+      "zeitS": "1621",
       "dat226": "15.09.2026",
       "zeit226": "1621",
       "datAvis": null,
@@ -121891,6 +123465,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1723"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1621"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1621"
       }
     ],
     "gebuehren": [
@@ -122475,7 +124061,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1754",
+      "zeitS": "1652",
       "dat226": "15.09.2026",
       "zeit226": "1652",
       "datAvis": null,
@@ -122521,6 +124107,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1754"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1652"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1652"
       }
     ],
     "gebuehren": [
@@ -123078,7 +124676,7 @@
       "fahrer": "Ralph",
       "tag": "Di",
       "datS": "15.09.2026",
-      "zeitS": "1825",
+      "zeitS": "1723",
       "dat226": "15.09.2026",
       "zeit226": "1723",
       "datAvis": null,
@@ -123135,6 +124733,18 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1825"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1723"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "15.09.2026",
+        "zeit": "1723"
       }
     ],
     "gebuehren": [
@@ -124004,15 +125614,15 @@
         "zeit": "0730"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "16.10.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "0710",
         "datum": "24.09.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "16.10.2025"
       },
       {
         "halbjahr": "1",
@@ -124448,15 +126058,15 @@
         "zeit": "0820"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "16.10.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "0755",
         "datum": "24.09.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "16.10.2025"
       },
       {
         "halbjahr": "1",
@@ -129150,15 +130760,15 @@
         "zeit": "0905"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "16.10.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "1245",
         "datum": "24.09.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "16.10.2025"
       },
       {
         "halbjahr": "1",
@@ -144136,9 +145746,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "19.10.2026",
-      "zeitS": "1370",
+      "zeitS": "1342",
       "dat226": "19.10.2026",
-      "zeit226": "1370",
+      "zeit226": "1342",
       "datAvis": null,
       "zustKt": "ZH"
     },
@@ -144186,13 +145796,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "13.04.2026",
-        "zeit": "1370"
+        "zeit": "0317"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "19.10.2026",
-        "zeit": "1370"
+        "zeit": "1342"
       }
     ],
     "gebuehren": [
@@ -160369,9 +161979,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "28.09.2026",
-      "zeitS": "1385",
+      "zeitS": "1351",
       "dat226": "28.09.2026",
-      "zeit226": "1385",
+      "zeit226": "1351",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -160419,13 +162029,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "16.04.2026",
-        "zeit": "1385"
+        "zeit": "0319"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "28.09.2026",
-        "zeit": "1385"
+        "zeit": "1351"
       }
     ],
     "gebuehren": [
@@ -160989,9 +162599,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "28.09.2026",
-      "zeitS": "1475",
+      "zeitS": "1445",
       "dat226": "28.09.2026",
-      "zeit226": "1475",
+      "zeit226": "1445",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -161039,13 +162649,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "16.04.2026",
-        "zeit": "1475"
+        "zeit": "0332"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "28.09.2026",
-        "zeit": "1475"
+        "zeit": "1445"
       }
     ],
     "gebuehren": [
@@ -161614,9 +163224,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "28.09.2026",
-      "zeitS": "1560",
+      "zeitS": "1536",
       "dat226": "28.09.2026",
-      "zeit226": "1560",
+      "zeit226": "1536",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -161642,7 +163252,7 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "28.09.2026",
-        "zeit": "1560"
+        "zeit": "1536"
       }
     ],
     "gebuehren": [
@@ -166542,9 +168152,9 @@
       "fahrer": "Kathrin",
       "tag": "Mi",
       "datS": "21.10.2026",
-      "zeitS": "1265",
+      "zeitS": "1239",
       "dat226": "21.10.2026",
-      "zeit226": "1265",
+      "zeit226": "1239",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -166579,7 +168189,7 @@
       {
         "halbjahr": "1",
         "jahr": "2025",
-        "zeit": "1265",
+        "zeit": "0302",
         "datum": "01.05.2025"
       },
       {
@@ -166592,13 +168202,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "16.04.2026",
-        "zeit": "1265"
+        "zeit": "0302"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "21.10.2026",
-        "zeit": "1265"
+        "zeit": "1239"
       }
     ],
     "gebuehren": [
@@ -184621,9 +186231,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "05.10.2026",
-      "zeitS": "1465",
+      "zeitS": "1439",
       "dat226": "05.10.2026",
-      "zeit226": "1375",
+      "zeit226": "1345",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -184632,13 +186242,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "22.04.2026",
-        "zeit": "1375"
+        "zeit": "0318"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "05.10.2026",
-        "zeit": "1465",
+        "zeit": "1439",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -184650,7 +186260,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "05.10.2026",
-        "zeit": "1375",
+        "zeit": "1345",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -190176,9 +191786,9 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "06.10.2026",
-      "zeitS": "1375",
+      "zeitS": "1345",
       "dat226": "06.10.2026",
-      "zeit226": "1375",
+      "zeit226": "1345",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -190226,13 +191836,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "21.04.2026",
-        "zeit": "1375"
+        "zeit": "0318"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "06.10.2026",
-        "zeit": "1375"
+        "zeit": "1345"
       }
     ],
     "gebuehren": [
@@ -190775,9 +192385,9 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "06.10.2026",
-      "zeitS": "1460",
+      "zeitS": "1436",
       "dat226": "06.10.2026",
-      "zeit226": "1460",
+      "zeit226": "1436",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -190825,13 +192435,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "21.04.2026",
-        "zeit": "1460"
+        "zeit": "0330"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "06.10.2026",
-        "zeit": "1460"
+        "zeit": "1436"
       }
     ],
     "gebuehren": [
@@ -195720,7 +197330,7 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "23.04.2026",
-        "zeit": "1380"
+        "zeit": "0319"
       },
       {
         "halbjahr": "2",
@@ -196322,7 +197932,7 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "23.04.2026",
-        "zeit": "1465"
+        "zeit": "0331"
       },
       {
         "halbjahr": "2",
@@ -198897,6 +200507,18 @@
         "jahr": "2026",
         "datum": "14.09.2026",
         "zeit": "0820"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "820"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "0820"
       }
     ],
     "gebuehren": [
@@ -200311,6 +201933,18 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "24.04.2026",
+        "zeit": "1055"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
+        "zeit": "1055"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "14.09.2026",
         "zeit": "1055"
       },
       {
@@ -205858,9 +207492,9 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "29.09.2026",
-      "zeitS": "1465",
+      "zeitS": "1439",
       "dat226": "13.10.2026",
-      "zeit226": "1465",
+      "zeit226": "1439",
       "datAvis": null,
       "zustKt": "AI"
     },
@@ -205908,13 +207542,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "28.04.2026",
-        "zeit": "1465"
+        "zeit": "0331"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "29.09.2026",
-        "zeit": "1465"
+        "zeit": "1439"
       }
     ],
     "gebuehren": [
@@ -208870,9 +210504,9 @@
       "fahrer": "Kathrin",
       "tag": "Di",
       "datS": "29.09.2026",
-      "zeitS": "1380",
+      "zeitS": "1348",
       "dat226": "13.10.2026",
-      "zeit226": "1380",
+      "zeit226": "1348",
       "datAvis": null,
       "zustKt": "AI"
     },
@@ -208899,13 +210533,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "28.04.2026",
-        "zeit": "1380"
+        "zeit": "0319"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "29.09.2026",
-        "zeit": "1380"
+        "zeit": "1348"
       }
     ],
     "gebuehren": [
@@ -213996,9 +215630,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "21.09.2026",
-      "zeitS": "1280",
+      "zeitS": "1248",
       "dat226": "14.10.2026",
-      "zeit226": "1280",
+      "zeit226": "1248",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -214007,13 +215641,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "29.04.2026",
-        "zeit": "1280"
+        "zeit": "0304"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "21.09.2026",
-        "zeit": "1280"
+        "zeit": "1248"
       }
     ],
     "gebuehren": [
@@ -214976,9 +216610,9 @@
       "fahrer": "Kathrin",
       "tag": "Mo",
       "datS": "21.09.2026",
-      "zeitS": "1470",
+      "zeitS": "1442",
       "dat226": "14.10.2026",
-      "zeit226": "1470",
+      "zeit226": "1442",
       "datAvis": null,
       "zustKt": "SG"
     },
@@ -215026,13 +216660,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "29.04.2026",
-        "zeit": "1470"
+        "zeit": "0332"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "21.09.2026",
-        "zeit": "1470"
+        "zeit": "1442"
       }
     ],
     "gebuehren": [
@@ -225102,7 +226736,7 @@
       "datS": "22.09.2026",
       "zeitS": "1330",
       "dat226": "22.09.2026",
-      "zeit226": "1270",
+      "zeit226": "1242",
       "datAvis": null,
       "zustKt": "Vlbg"
     },
@@ -225124,14 +226758,14 @@
         "zeit": "1330"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "24.11.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "datum": "28.07.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "24.11.2025"
       },
       {
         "halbjahr": "2",
@@ -225161,7 +226795,7 @@
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "22.09.2026",
-        "zeit": "1270",
+        "zeit": "1242",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -226028,6 +227662,18 @@
         "jahr": "2026",
         "datum": "10.09.2026",
         "zeit": "1010"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1010"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1010"
       }
     ],
     "gebuehren": [
@@ -226654,6 +228300,18 @@
         "jahr": "2026",
         "datum": "04.05.2026",
         "zeit": "0845"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1215"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1215"
       },
       {
         "halbjahr": "2",
@@ -227289,6 +228947,18 @@
         "jahr": "2026",
         "datum": "10.09.2026",
         "zeit": "1115"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1115"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1115"
       }
     ],
     "gebuehren": [
@@ -227898,6 +229568,18 @@
         "jahr": "2026",
         "datum": "04.05.2026",
         "zeit": "1055"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "0845"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "845"
       },
       {
         "halbjahr": "2",
@@ -228800,6 +230482,30 @@
         "jahr": "2026",
         "datum": "04.05.2026",
         "zeit": "1405"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1520",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Steuerung montieren"
+          }
+        ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2026",
+        "datum": "10.09.2026",
+        "zeit": "1520",
+        "notizen": [
+          {
+            "label": "Nächster Service",
+            "text": "Steuerung montieren"
+          }
+        ]
       },
       {
         "halbjahr": "2",
@@ -236399,16 +238105,16 @@
         "datum": "21.09.2023"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2024",
-        "datum": "H1061",
-        "zeit": "1330"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2024",
         "datum": "06.09.2024",
         "zeit": "1342"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2024",
+        "datum": "H1061",
+        "zeit": "1330"
       },
       {
         "halbjahr": "1",
@@ -265121,14 +266827,14 @@
         "zeit": "1352"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "17.12.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "datum": "25.06.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "17.12.2025"
       },
       {
         "halbjahr": "1",
@@ -277882,15 +279588,15 @@
         "zeit": "1052"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "01.12.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "1052",
         "datum": "26.06.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "01.12.2025"
       },
       {
         "halbjahr": "1",
@@ -291518,14 +293224,14 @@
         "zeit": "1150"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2025",
-        "datum": "31.07.2025"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "datum": "13.02.2025"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2025",
+        "datum": "31.07.2025"
       },
       {
         "halbjahr": "2",
@@ -376882,7 +378588,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -376899,7 +378605,7 @@
         "halbjahr": "2",
         "jahr": "2024",
         "datum": "19.09.2024",
-        "zeit": "1490"
+        "zeit": "0335"
       },
       {
         "halbjahr": "1",
@@ -377450,7 +379156,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -377965,7 +379671,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -378478,7 +380184,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -378982,7 +380688,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -379505,7 +381211,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -379999,7 +381705,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -380494,7 +382200,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -380994,7 +382700,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -381523,7 +383229,7 @@
       "fahrer": "Kathrin",
       "tag": null,
       "datS": null,
-      "zeitS": null,
+      "zeitS": "0000",
       "dat226": null,
       "zeit226": null,
       "datAvis": null,
@@ -382607,9 +384313,9 @@
       "fahrer": null,
       "tag": "MI",
       "datS": "20.10.2026",
-      "zeitS": "1270",
+      "zeitS": "1242",
       "dat226": "20.10.2026",
-      "zeit226": "1270",
+      "zeit226": "1242",
       "datAvis": null,
       "zustKt": "SH"
     },
@@ -382657,13 +384363,13 @@
         "halbjahr": "1",
         "jahr": "2026",
         "datum": "18.03.2026",
-        "zeit": "1270"
+        "zeit": "0303"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "20.10.2026",
-        "zeit": "1270"
+        "zeit": "1242"
       }
     ],
     "gebuehren": [

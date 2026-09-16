@@ -490,6 +490,70 @@ app.get('/api/config', requireAuth, (req, res) => {
   res.json({ gmapKey: process.env.GOOGLE_MAPS_API_KEY || '' });
 });
 
+// ---- Avisierung ----
+app.get('/api/avisierung', requireAuth, (req, res) => {
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  const TAG = 24 * 60 * 60 * 1000;
+
+  function parseDat(v) {
+    const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return null;
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  }
+
+  function zeitFenster(zeit) {
+    if (!zeit) return null;
+    const digits = String(zeit).replace(/\D/g, '').padStart(4, '0');
+    const hh = parseInt(digits.slice(0, 2), 10);
+    const mm = parseInt(digits.slice(2, 4), 10);
+    const von = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    const bisMin = (hh * 60 + mm) + 240; // + 4 Stunden
+    const bisH = Math.min(Math.floor(bisMin / 60), 20);
+    const bisM = bisMin % 60;
+    const bis = `${String(bisH).padStart(2, '0')}:${String(bisM).padStart(2, '0')}`;
+    return `${von} – ${bis} Uhr`;
+  }
+
+  const eintraege = [];
+  kunden.forEach((k) => {
+    const mail = k.kontakte && k.kontakte.avisierung && k.kontakte.avisierung.mail;
+    if (!mail || !mail.trim() || !mail.includes('@')) return;
+
+    (k.termine || []).forEach((t) => {
+      if (!t.datum || t.storniert) return;
+      const terminDatum = parseDat(t.datum);
+      if (!terminDatum) return;
+      // Nur zukünftige Termine
+      if (terminDatum.getTime() < heute.getTime()) return;
+
+      const avisierungsDatum = new Date(terminDatum.getTime() - 14 * TAG);
+      const tageVorTermin = Math.round((terminDatum.getTime() - heute.getTime()) / TAG);
+      const tageBisAvisierung = Math.round((avisierungsDatum.getTime() - heute.getTime()) / TAG);
+
+      eintraege.push({
+        kdnr: k.kdnr,
+        kdnrName: k.kdnrName,
+        mail: mail.trim(),
+        terminDatum: t.datum,
+        terminZeit: t.zeit || null,
+        zeitfenster: zeitFenster(t.zeit),
+        halbjahr: t.halbjahr,
+        avisierungsDatum: `${String(avisierungsDatum.getDate()).padStart(2, '0')}.${String(avisierungsDatum.getMonth() + 1).padStart(2, '0')}.${avisierungsDatum.getFullYear()}`,
+        tageVorTermin,
+        tageBisAvisierung,
+        fahrer: k.planung ? k.planung.fahrer : null,
+        ort: k.anlage ? k.anlage.ort : null,
+      });
+    });
+  });
+
+  // Sortiert nach Avisierungsdatum (nächste zuerst)
+  eintraege.sort((a, b) => a.tageBisAvisierung - b.tageBisAvisierung);
+
+  res.json({ eintraege, total: eintraege.length });
+});
+
 app.get('/api/schieber', requireAuth, (req, res) => {
   try {
     const p = path.join(__dirname, 'data', 'schieber.json');
