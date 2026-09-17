@@ -514,9 +514,8 @@ function icsKalendereintrag(terminDatum, zeitVon, zeitBis, kundenName, ort) {
     `DTEND;TZID=Europe/Zurich:${dtEnd}`,
     `DTSTAMP:${now}`,
     `UID:wks-${dd}${mm}${yyyy}-${Date.now()}@wksweber.ch`,
-    `SUMMARY:WKS Service – ${kundenName}`,
-    `DESCRIPTION:Service-Termin Ihrer Abwasseranlage durch WKS Weber GmbH`,
-    ort ? `LOCATION:${ort}` : '',
+    'SUMMARY:Servicetermin WKS',
+    'DESCRIPTION:Service-Termin Ihrer Kläranlage durch WKS Weber GmbH\\nBei kurzfristigen Änderungen: info@wksweber.ch / 071 352 38 22',
     'STATUS:CONFIRMED',
     'END:VEVENT',
     'END:VCALENDAR',
@@ -625,21 +624,32 @@ app.post('/api/avisierung/test', requireAuth, async (req, res) => {
     ort = 'Musterstrasse 1, 9000 St. Gallen';
   }
 
+  const logoUrl = 'https://wks-dashboard.onrender.com/tropfen-icon.png';
   const htmlBody = `
-    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;">
-      <h2 style="color:#2E7D32;">Service-Termin Ihrer Abwasseranlage</h2>
-      <p>Guten Tag</p>
-      <p>Wir möchten Sie darüber informieren, dass der nächste Service Ihrer Abwasseranlage geplant ist:</p>
-      <table style="border-collapse:collapse;width:100%;margin:20px 0;">
-        <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Datum</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${terminDatum}</td></tr>
-        <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Zeitfenster</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${zeitfenster}</td></tr>
-        ${ort ? `<tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Standort</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${ort}</td></tr>` : ''}
-      </table>
-      <p>Im Anhang finden Sie einen Kalendereintrag für Ihren Kalender.</p>
-      <p>Bitte stellen Sie sicher, dass der Zugang zur Anlage am Servicetag gewährleistet ist.</p>
-      <p>Bei Fragen erreichen Sie uns unter <a href="tel:+41713510404">071 351 04 04</a> oder per Mail an <a href="mailto:info@wksweber.ch">info@wksweber.ch</a>.</p>
-      <br>
-      <p>Freundliche Grüsse<br><strong>WKS Weber GmbH</strong><br>Abwasseranlagen – Wartung und Service</p>
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;background:#fff;">
+      <div style="background:#1a1a1a;padding:24px 20px;border-radius:12px 12px 0 0;text-align:center;">
+        <img src="${logoUrl}" alt="WKS" style="width:44px;height:44px;margin-bottom:8px;filter:brightness(2);" />
+        <div style="color:#fff;font-size:20px;font-weight:700;">Service-Termin Ihrer Kläranlage</div>
+      </div>
+      <div style="padding:28px 24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 12px 12px;">
+        <p style="margin:0 0 16px;">Lieber WKS-Kunde</p>
+        <p style="margin:0 0 20px;">Wir möchten Sie darüber informieren, dass der nächste Service Ihrer Kläranlage geplant ist:</p>
+        <div style="background:#f5f5f5;border-radius:10px;padding:16px 18px;margin:0 0 20px;">
+          <table style="border-collapse:collapse;width:100%;">
+            <tr><td style="padding:10px 0;font-weight:600;color:#1a1a1a;width:120px;border-bottom:1px solid #ddd;">Datum</td><td style="padding:10px 0;border-bottom:1px solid #ddd;">${terminDatum}</td></tr>
+            <tr><td style="padding:10px 0;font-weight:600;color:#1a1a1a;width:120px;border-bottom:1px solid #ddd;">Zeitfenster</td><td style="padding:10px 0;border-bottom:1px solid #ddd;">${zeitfenster}</td></tr>
+            ${ort ? `<tr><td style="padding:10px 0;font-weight:600;color:#1a1a1a;width:120px;">Standort</td><td style="padding:10px 0;">${ort}</td></tr>` : ''}
+          </table>
+        </div>
+        <p style="margin:0 0 14px;">Im Anhang finden Sie einen Kalendereintrag für Ihren Kalender, falls Sie diesen hinzufügen möchten.</p>
+        <p style="margin:0 0 14px;">Bitte stellen Sie sicher, dass der Zugang zu den Anlagenbestandteilen am Servicetag gewährleistet ist. Sollte dies gewährleistet sein, müssen Sie nicht anwesend sein.</p>
+        <p style="margin:0 0 24px;">Bei Fragen erreichen Sie uns unter <a href="tel:+41713523822" style="color:#1a1a1a;font-weight:600;">071 352 38 22</a> oder per Mail an <a href="mailto:info@wksweber.ch" style="color:#1a1a1a;font-weight:600;">info@wksweber.ch</a>.</p>
+        <div style="border-top:1px solid #e0e0e0;padding-top:16px;color:#666;font-size:14px;">
+          <p style="margin:0;">Freundliche Grüsse</p>
+          <p style="margin:4px 0 0;font-weight:700;color:#1a1a1a;">WKS Weber GmbH</p>
+          <p style="margin:2px 0 0;font-size:13px;">Kläranlagen – Wartung und Service</p>
+        </div>
+      </div>
     </div>
   `;
 
