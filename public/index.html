@@ -1863,8 +1863,13 @@ async function openAvisierung(){
 
     let html = `<div class="avis-count">
       ${alle.length} Avisierungen geplant (Kunden mit hinterlegter Mail)
-      <button type="button" class="strecke-btn" id="avis-test-btn" style="margin-top:8px;">Test-Mail senden an info@ralphweber.ch</button>
-      <div id="avis-test-result"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="avis-test-kunde" style="flex:1;min-width:180px;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13px;">
+          ${alle.map(e => `<option value="${escapeHtml(e.kdnr)}">${escapeHtml(e.kdnrName)} · ${escapeHtml(e.terminDatum)}</option>`).join('')}
+        </select>
+        <button type="button" class="strecke-btn" id="avis-test-btn">Test-Mail senden</button>
+      </div>
+      <div id="avis-test-result" style="margin-top:6px;"></div>
     </div>`;
 
     if(ueberfaellig.length){
@@ -1894,19 +1899,21 @@ async function openAvisierung(){
     if(testBtn){
       testBtn.addEventListener('click', async () => {
         const resultEl = document.getElementById('avis-test-result');
+        const kundeSelect = document.getElementById('avis-test-kunde');
+        const kdnr = kundeSelect ? kundeSelect.value : null;
         testBtn.disabled = true;
         testBtn.textContent = 'Wird gesendet…';
         try{
           const r = await fetch('/api/avisierung/test', {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({email:'info@ralphweber.ch'}),
+            body: JSON.stringify({email:'info@ralphweber.ch', kdnr}),
           });
           const d = await r.json();
           if(d.ok){
-            resultEl.innerHTML = '<span style="color:#2E7D32;font-weight:600;">✓ Test-Mail gesendet an ' + escapeHtml(d.an) + '</span>';
+            resultEl.innerHTML = `<span style="color:#2E7D32;font-weight:600;">✓ Test-Mail für ${escapeHtml(d.kunde)} gesendet an ${escapeHtml(d.an)}</span>`;
           } else {
-            resultEl.innerHTML = '<span style="color:#C62828;">' + escapeHtml(d.error) + '</span>';
+            resultEl.innerHTML = `<span style="color:#C62828;">${escapeHtml(d.error)}</span>`;
           }
         }catch(err){
           resultEl.innerHTML = '<span style="color:#C62828;">Fehler beim Senden</span>';

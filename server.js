@@ -558,19 +558,72 @@ async function sendBrevoMail({ an, betreff, htmlBody, icsContent }) {
   return r.json();
 }
 
-// Test-Mail senden
+// Test-Mail senden (mit echten Kundendaten)
 app.post('/api/avisierung/test', requireAuth, async (req, res) => {
   if (!BREVO_API_KEY) {
     return res.status(400).json({ error: 'BREVO_API_KEY ist nicht gesetzt.' });
   }
 
   const testMail = req.body.email || 'info@ralphweber.ch';
+  const kdnr = req.body.kdnr;
 
-  // Beispieldaten für die Test-Mail
-  const kundenName = 'Muster AG';
-  const terminDatum = '15.03.2027';
-  const zeitfenster = '09:30 – 11:30 Uhr';
-  const ort = 'Musterstrasse 1, 9000 St. Gallen';
+  let kundenName, terminDatum, zeitfenster, ort, zeitVon, zeitBis;
+
+  if (kdnr) {
+    // Echten Kunden verwenden
+    const kunde = kunden.find((k) => k.kdnr === kdnr);
+    if (!kunde) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    kundenName = kunde.kdnrName || 'Kunde ' + kdnr;
+    ort = kunde.anlage ? [kunde.anlage.adresse, [kunde.anlage.plz, kunde.anlage.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '';
+
+    // Nächsten zukünftigen Termin finden
+    const heute = new Date(); heute.setHours(0, 0, 0, 0);
+    const termin = (kunde.termine || []).find((t) => {
+      if (!t.datum || t.storniert) return false;
+      const m = t.datum.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      if (!m) return false;
+      const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+      return d >= heute;
+    });
+
+    if (!termin) return res.status(400).json({ error: 'Kein zukünftiger Termin für diesen Kunden.' });
+
+    terminDatum = termin.datum;
+
+    // Zeitfenster berechnen (gleiche Logik wie in /api/avisierung)
+    if (termin.zeit) {
+      const digits = String(termin.zeit).replace(/\D/g, '').padStart(4, '0');
+      const hh = parseInt(digits.slice(0, 2), 10), mm = parseInt(digits.slice(2, 4), 10);
+      const total = hh * 60 + mm;
+      let vonMin, bisMin;
+      if (total < 450) { vonMin = total; bisMin = 450; }
+      else if (total === 450) { vonMin = 450; bisMin = 480; }
+      else if (total <= 510) { vonMin = 465; bisMin = 600; }
+      else if (total <= 600) { vonMin = Math.max(480, Math.floor((total - 60) / 30) * 30); bisMin = Math.ceil((total + 60) / 30) * 30; }
+      else if (total <= 689) { vonMin = Math.floor((total - 60) / 30) * 30; bisMin = Math.ceil((total + 60) / 30) * 30; if (bisMin >= 720) bisMin = 780; }
+      else if (total <= 780) { vonMin = 630; bisMin = 840; }
+      else if (total <= 900) { vonMin = Math.floor((total - 60) / 30) * 30; bisMin = Math.ceil((total + 60) / 30) * 30; }
+      else if (total <= 1020) { vonMin = Math.floor((total - 60) / 30) * 30; bisMin = Math.ceil((total + 60) / 30) * 30; }
+      else if (total <= 1050) { vonMin = 900; bisMin = 1065; }
+      else { vonMin = 960; bisMin = 1110; }
+      if (vonMin >= 720 && vonMin < 765) vonMin = 780;
+      if (bisMin >= 720 && bisMin < 765) bisMin = 780;
+      function fmt(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+      zeitVon = fmt(vonMin); zeitBis = fmt(bisMin);
+      zeitfenster = zeitVon + ' – ' + zeitBis + ' Uhr';
+    } else {
+      zeitfenster = 'wird noch bekanntgegeben';
+      zeitVon = '08:00'; zeitBis = '12:00';
+    }
+  } else {
+    // Fallback: Beispieldaten
+    kundenName = 'Muster AG';
+    terminDatum = '15.03.2027';
+    zeitfenster = '09:30 – 11:30 Uhr';
+    zeitVon = '09:30'; zeitBis = '11:30';
+    ort = 'Musterstrasse 1, 9000 St. Gallen';
+  }
 
   const htmlBody = `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;">
@@ -580,7 +633,7 @@ app.post('/api/avisierung/test', requireAuth, async (req, res) => {
       <table style="border-collapse:collapse;width:100%;margin:20px 0;">
         <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Datum</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${terminDatum}</td></tr>
         <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Zeitfenster</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${zeitfenster}</td></tr>
-        <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Standort</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${ort}</td></tr>
+        ${ort ? `<tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Standort</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${ort}</td></tr>` : ''}
       </table>
       <p>Im Anhang finden Sie einen Kalendereintrag für Ihren Kalender.</p>
       <p>Bitte stellen Sie sicher, dass der Zugang zur Anlage am Servicetag gewährleistet ist.</p>
@@ -590,16 +643,14 @@ app.post('/api/avisierung/test', requireAuth, async (req, res) => {
     </div>
   `;
 
-  const ics = icsKalendereintrag(terminDatum, '09:30', '11:30', kundenName, ort);
+  const ics = icsKalendereintrag(terminDatum, zeitVon, zeitBis, kundenName, ort);
 
   try {
-    await sendBrevoMail({
-      an: testMail,
-      betreff: '[TEST] Service-Termin Ihrer Abwasseranlage – 15.03.2027',
-      htmlBody,
-      icsContent: ics,
-    });
-    res.json({ ok: true, an: testMail });
+    const betreff = kdnr
+      ? `[TEST] Service-Termin Ihrer Abwasseranlage – ${terminDatum}`
+      : `[TEST] Service-Termin Ihrer Abwasseranlage – 15.03.2027`;
+    const result = await sendBrevoMail({ an: testMail, betreff, htmlBody, icsContent: ics });
+    res.json({ ok: true, an: testMail, kunde: kundenName, messageId: result.messageId || null });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
