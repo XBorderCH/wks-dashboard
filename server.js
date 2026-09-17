@@ -6,6 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const PASSWORD = process.env.APP_PASSWORD || 'aendern123';
+const USERNAME = process.env.APP_USERNAME || 'info@wksweber.ch';
 
 // Shopify – für Lagerbestände
 const SHOPIFY_STORE = 'dhb5cz-wf.myshopify.com';
@@ -38,8 +39,8 @@ app.use(
 
 // --- Login ---
 app.post('/api/login', (req, res) => {
-  const { password } = req.body;
-  if (password === PASSWORD) {
+  const { username, password } = req.body;
+  if (username === USERNAME && password === PASSWORD) {
     req.session.authed = true;
     return res.json({ ok: true });
   }

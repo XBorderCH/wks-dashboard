@@ -506,8 +506,10 @@
       <div class="brand-text">Kundendatenbank</div>
     </div>
     <form id="login-form">
+      <label for="user">Benutzername</label>
+      <input type="email" id="user" autocomplete="username" autofocus />
       <label for="pw">Passwort</label>
-      <input type="password" id="pw" autocomplete="current-password" autofocus />
+      <input type="password" id="pw" autocomplete="current-password" />
       <button type="submit">Anmelden</button>
       <div class="login-error" id="login-error"></div>
     </form>
@@ -678,16 +680,17 @@ function zeigeHeutigeFahrerWahl(datum){
 
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const username = $('#user').value;
   const password = $('#pw').value;
   $('#login-error').textContent = '';
   try{
     const r = await fetch('/api/login', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({password})
+      body: JSON.stringify({username, password})
     });
     const d = await r.json();
     if(d.ok){ showApp(); }
-    else { $('#login-error').textContent = 'Falsches Passwort.'; }
+    else { $('#login-error').textContent = 'Falscher Benutzername oder Passwort.'; }
   }catch(err){
     $('#login-error').textContent = 'Verbindungsfehler.';
   }
