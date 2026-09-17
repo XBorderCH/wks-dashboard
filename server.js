@@ -507,11 +507,38 @@ app.get('/api/avisierung', requireAuth, (req, res) => {
     const digits = String(zeit).replace(/\D/g, '').padStart(4, '0');
     const hh = parseInt(digits.slice(0, 2), 10);
     const mm = parseInt(digits.slice(2, 4), 10);
-    const von = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-    const bisMin = (hh * 60 + mm) + 240; // + 4 Stunden
-    const bisH = Math.min(Math.floor(bisMin / 60), 20);
-    const bisM = bisMin % 60;
-    const bis = `${String(bisH).padStart(2, '0')}:${String(bisM).padStart(2, '0')}`;
+    const total = hh * 60 + mm;
+
+    let von, bis;
+    if (total < 7 * 60 + 30) {
+      // vor 07:30 → exakte Zeit bis 07:30
+      von = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+      bis = '07:30';
+    } else if (total === 7 * 60 + 30) {
+      // genau 07:30 → 07:30–08:00
+      von = '07:30'; bis = '08:00';
+    } else if (total <= 8 * 60 + 30) {
+      // 07:31–08:30 → 07:45–10:00
+      von = '07:45'; bis = '10:00';
+    } else if (total <= 10 * 60) {
+      // 08:31–10:00 → 08:30–12:00
+      von = '08:30'; bis = '12:00';
+    } else if (total <= 15 * 60) {
+      // 10:01–15:00 → ±2h gerundet auf 30min
+      const vonMin = Math.floor((total - 120) / 30) * 30;
+      const bisMin = Math.ceil((total + 120) / 30) * 30;
+      von = `${String(Math.floor(vonMin / 60)).padStart(2, '0')}:${String(vonMin % 60).padStart(2, '0')}`;
+      bis = `${String(Math.floor(bisMin / 60)).padStart(2, '0')}:${String(bisMin % 60).padStart(2, '0')}`;
+    } else if (total <= 17 * 60) {
+      // 15:01–17:00 → 13:30–18:00
+      von = '13:30'; bis = '18:00';
+    } else if (total <= 17 * 60 + 30) {
+      // 17:01–17:30 → 15:00–17:45
+      von = '15:00'; bis = '17:45';
+    } else {
+      // 17:31–18:30 → 16:00–18:30
+      von = '16:00'; bis = '18:30';
+    }
     return `${von} – ${bis} Uhr`;
   }
 
