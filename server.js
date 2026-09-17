@@ -13,6 +13,10 @@ const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || '';
 const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET || '';
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || '';
 
+// Brevo – für Avisierungs-Mails
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const AVISIERUNG_ABSENDER = { name: 'WKS Weber GmbH', email: 'avisierung@wksweber.ch' };
+
 let kunden = [];
 function loadData() {
   const p = path.join(__dirname, 'data', 'kunden.json');
@@ -490,6 +494,117 @@ app.get('/api/config', requireAuth, (req, res) => {
   res.json({ gmapKey: process.env.GOOGLE_MAPS_API_KEY || '' });
 });
 
+// ---- Brevo Mail-Versand ----
+function icsKalendereintrag(terminDatum, zeitVon, zeitBis, kundenName, ort) {
+  // terminDatum = "DD.MM.YYYY", zeitVon/zeitBis = "HH:MM"
+  const [dd, mm, yyyy] = terminDatum.split('.');
+  const [hV, mV] = zeitVon.split(':');
+  const [hB, mB] = zeitBis.split(':');
+  const dtStart = `${yyyy}${mm}${dd}T${hV}${mV}00`;
+  const dtEnd = `${yyyy}${mm}${dd}T${hB}${mB}00`;
+  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//WKS Weber GmbH//Avisierung//DE',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `DTSTART;TZID=Europe/Zurich:${dtStart}`,
+    `DTEND;TZID=Europe/Zurich:${dtEnd}`,
+    `DTSTAMP:${now}`,
+    `UID:wks-${dd}${mm}${yyyy}-${Date.now()}@wksweber.ch`,
+    `SUMMARY:WKS Service – ${kundenName}`,
+    `DESCRIPTION:Service-Termin Ihrer Abwasseranlage durch WKS Weber GmbH`,
+    ort ? `LOCATION:${ort}` : '',
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+}
+
+async function sendBrevoMail({ an, betreff, htmlBody, icsContent }) {
+  const empfaenger = an.split(';').map((m) => m.trim()).filter((m) => m.includes('@')).map((m) => ({ email: m }));
+  if (!empfaenger.length) throw new Error('Keine gültige E-Mail-Adresse');
+
+  const payload = {
+    sender: AVISIERUNG_ABSENDER,
+    to: empfaenger,
+    subject: betreff,
+    htmlContent: htmlBody,
+  };
+
+  if (icsContent) {
+    payload.attachment = [{
+      name: 'termin.ics',
+      content: Buffer.from(icsContent).toString('base64'),
+    }];
+  }
+
+  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': BREVO_API_KEY,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`Brevo ${r.status}: ${body.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+// Test-Mail senden
+app.post('/api/avisierung/test', requireAuth, async (req, res) => {
+  if (!BREVO_API_KEY) {
+    return res.status(400).json({ error: 'BREVO_API_KEY ist nicht gesetzt.' });
+  }
+
+  const testMail = req.body.email || 'info@ralphweber.ch';
+
+  // Beispieldaten für die Test-Mail
+  const kundenName = 'Muster AG';
+  const terminDatum = '15.03.2027';
+  const zeitfenster = '09:30 – 11:30 Uhr';
+  const ort = 'Musterstrasse 1, 9000 St. Gallen';
+
+  const htmlBody = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;">
+      <h2 style="color:#2E7D32;">Service-Termin Ihrer Abwasseranlage</h2>
+      <p>Guten Tag</p>
+      <p>Wir möchten Sie darüber informieren, dass der nächste Service Ihrer Abwasseranlage geplant ist:</p>
+      <table style="border-collapse:collapse;width:100%;margin:20px 0;">
+        <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Datum</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${terminDatum}</td></tr>
+        <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Zeitfenster</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${zeitfenster}</td></tr>
+        <tr><td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">Standort</td><td style="padding:8px 12px;border-bottom:1px solid #eee;">${ort}</td></tr>
+      </table>
+      <p>Im Anhang finden Sie einen Kalendereintrag für Ihren Kalender.</p>
+      <p>Bitte stellen Sie sicher, dass der Zugang zur Anlage am Servicetag gewährleistet ist.</p>
+      <p>Bei Fragen erreichen Sie uns unter <a href="tel:+41713510404">071 351 04 04</a> oder per Mail an <a href="mailto:info@wksweber.ch">info@wksweber.ch</a>.</p>
+      <br>
+      <p>Freundliche Grüsse<br><strong>WKS Weber GmbH</strong><br>Abwasseranlagen – Wartung und Service</p>
+    </div>
+  `;
+
+  const ics = icsKalendereintrag(terminDatum, '09:30', '11:30', kundenName, ort);
+
+  try {
+    await sendBrevoMail({
+      an: testMail,
+      betreff: '[TEST] Service-Termin Ihrer Abwasseranlage – 15.03.2027',
+      htmlBody,
+      icsContent: ics,
+    });
+    res.json({ ok: true, an: testMail });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // ---- Avisierung ----
 app.get('/api/avisierung', requireAuth, (req, res) => {
   const heute = new Date();
@@ -509,37 +624,48 @@ app.get('/api/avisierung', requireAuth, (req, res) => {
     const mm = parseInt(digits.slice(2, 4), 10);
     const total = hh * 60 + mm;
 
-    let von, bis;
-    if (total < 7 * 60 + 30) {
-      // vor 07:30 → exakte Zeit bis 07:30
-      von = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-      bis = '07:30';
-    } else if (total === 7 * 60 + 30) {
-      // genau 07:30 → 07:30–08:00
-      von = '07:30'; bis = '08:00';
-    } else if (total <= 8 * 60 + 30) {
-      // 07:31–08:30 → 07:45–10:00
-      von = '07:45'; bis = '10:00';
-    } else if (total <= 10 * 60) {
-      // 08:31–10:00 → 08:30–12:00
-      von = '08:30'; bis = '12:00';
-    } else if (total <= 15 * 60) {
-      // 10:01–15:00 → ±2h gerundet auf 30min
-      const vonMin = Math.floor((total - 120) / 30) * 30;
-      const bisMin = Math.ceil((total + 120) / 30) * 30;
-      von = `${String(Math.floor(vonMin / 60)).padStart(2, '0')}:${String(vonMin % 60).padStart(2, '0')}`;
-      bis = `${String(Math.floor(bisMin / 60)).padStart(2, '0')}:${String(bisMin % 60).padStart(2, '0')}`;
-    } else if (total <= 17 * 60) {
-      // 15:01–17:00 → 13:30–18:00
-      von = '13:30'; bis = '18:00';
-    } else if (total <= 17 * 60 + 30) {
-      // 17:01–17:30 → 15:00–17:45
-      von = '15:00'; bis = '17:45';
-    } else {
-      // 17:31–18:30 → 16:00–18:30
-      von = '16:00'; bis = '18:30';
+    function fmt(min) {
+      return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
     }
-    return `${von} – ${bis} Uhr`;
+
+    let vonMin, bisMin;
+    if (total < 7 * 60 + 30) {
+      vonMin = total; bisMin = 7 * 60 + 30;
+    } else if (total === 7 * 60 + 30) {
+      vonMin = 7 * 60 + 30; bisMin = 8 * 60;
+    } else if (total <= 8 * 60 + 30) {
+      vonMin = 7 * 60 + 45; bisMin = 10 * 60;
+    } else if (total <= 10 * 60) {
+      // ±1h, min 08:00
+      vonMin = Math.max(8 * 60, Math.floor((total - 60) / 30) * 30);
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+    } else if (total <= 11 * 60 + 29) {
+      // 10:01–11:29 → ±1h, wenn Ende >= 12:00 dann bis 13:00
+      vonMin = Math.floor((total - 60) / 30) * 30;
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+      if (bisMin >= 12 * 60) bisMin = 13 * 60;
+    } else if (total <= 13 * 60) {
+      // 11:30–13:00 → fix
+      vonMin = 10 * 60 + 30; bisMin = 14 * 60;
+    } else if (total <= 15 * 60) {
+      // 13:01–15:00 → ±1h gerundet auf 30min
+      vonMin = Math.floor((total - 60) / 30) * 30;
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+    } else if (total <= 17 * 60) {
+      // 15:01–17:00 → ±1h gerundet auf 30min
+      vonMin = Math.floor((total - 60) / 30) * 30;
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+    } else if (total <= 17 * 60 + 30) {
+      vonMin = 15 * 60; bisMin = 17 * 60 + 45;
+    } else {
+      vonMin = 16 * 60; bisMin = 18 * 60 + 30;
+    }
+
+    // Mittagsregel: Zeitfenster darf nie zwischen 12:00 und 12:45 anfangen oder aufhören
+    if (vonMin >= 12 * 60 && vonMin < 12 * 60 + 45) vonMin = 13 * 60;
+    if (bisMin >= 12 * 60 && bisMin < 12 * 60 + 45) bisMin = 13 * 60;
+
+    return `${fmt(vonMin)} – ${fmt(bisMin)} Uhr`;
   }
 
   const eintraege = [];

@@ -1861,7 +1861,11 @@ async function openAvisierung(){
       </div>`;
     }
 
-    let html = `<div class="avis-count">${alle.length} Avisierungen geplant (Kunden mit hinterlegter Mail)</div>`;
+    let html = `<div class="avis-count">
+      ${alle.length} Avisierungen geplant (Kunden mit hinterlegter Mail)
+      <button type="button" class="strecke-btn" id="avis-test-btn" style="margin-top:8px;">Test-Mail senden an info@ralphweber.ch</button>
+      <div id="avis-test-result"></div>
+    </div>`;
 
     if(ueberfaellig.length){
       html += `<div class="avis-section-title">Überfällig</div>`;
@@ -1884,6 +1888,34 @@ async function openAvisierung(){
     }
 
     $('#avisierung-body').innerHTML = html;
+
+    // Test-Mail-Button verdrahten
+    const testBtn = document.getElementById('avis-test-btn');
+    if(testBtn){
+      testBtn.addEventListener('click', async () => {
+        const resultEl = document.getElementById('avis-test-result');
+        testBtn.disabled = true;
+        testBtn.textContent = 'Wird gesendet…';
+        try{
+          const r = await fetch('/api/avisierung/test', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({email:'info@ralphweber.ch'}),
+          });
+          const d = await r.json();
+          if(d.ok){
+            resultEl.innerHTML = '<span style="color:#2E7D32;font-weight:600;">✓ Test-Mail gesendet an ' + escapeHtml(d.an) + '</span>';
+          } else {
+            resultEl.innerHTML = '<span style="color:#C62828;">' + escapeHtml(d.error) + '</span>';
+          }
+        }catch(err){
+          resultEl.innerHTML = '<span style="color:#C62828;">Fehler beim Senden</span>';
+        }
+        testBtn.textContent = 'Nochmal senden';
+        testBtn.disabled = false;
+      });
+    }
+
   }catch(err){
     $('#avisierung-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
   }
