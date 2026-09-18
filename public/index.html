@@ -155,11 +155,11 @@
   .chip-clickable:active{filter:brightness(0.9);}
 
   /* ---- Tagestour-Modal ---- */
-  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay, #avisierung-overlay{
+  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay, #avisierung-overlay, #verwaltung-overlay, #import-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
     align-items:center;justify-content:center;padding:20px;
   }
-  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open, #avisierung-overlay.open{display:flex;}
+  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open, #avisierung-overlay.open, #verwaltung-overlay.open, #import-overlay.open{display:flex;}
   .modal-card{
     background:var(--surface);border-radius:12px;max-width:440px;width:100%;
     max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(20,30,26,0.2);
@@ -328,6 +328,25 @@
   .avis-row2 strong{color:var(--ink);font-weight:600;}
   .avis-mail{font-size:12px;color:var(--accent-ink);margin-top:2px;}
   .avis-count{font-size:12px;color:var(--ink-soft);padding:10px 10px 4px;border-bottom:1px solid var(--line);}
+
+  /* ---- Verwaltung ---- */
+  .verw-section{padding:16px 12px;border-bottom:1px solid var(--line);}
+  .verw-section:last-child{border-bottom:none;}
+  .verw-section h4{margin:0 0 10px;font-size:15px;color:var(--ink);}
+  .verw-section p{font-size:13px;color:var(--ink-soft);margin:0 0 12px;}
+  .verw-upload-area{
+    border:2px dashed var(--line);border-radius:10px;padding:20px;text-align:center;
+    cursor:pointer;transition:border-color 0.15s;
+  }
+  .verw-upload-area:hover{border-color:var(--accent);}
+  .verw-upload-area input[type=file]{display:none;}
+  .verw-upload-label{font-size:14px;color:var(--ink-soft);font-weight:500;}
+  .verw-result{margin-top:10px;font-size:13px;padding:10px;border-radius:8px;}
+  .verw-result.ok{background:#E8F5E9;color:#2E7D32;}
+  .verw-result.err{background:#FFEBEE;color:#C62828;}
+  .verw-datum-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .verw-datum-row input{padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:13px;}
+  .verw-datum-row button{white-space:nowrap;}
   .route-summary{
     margin-top:8px;padding:14px 10px;border-top:1px solid var(--line);
     font-size:14px;color:var(--ink-soft);
@@ -536,6 +555,12 @@
         <button type="button" class="logo-menu-item" data-menu="avisierung">
           <span>Avisierung</span>
         </button>
+        <button type="button" class="logo-menu-item" data-menu="import">
+          <span>Daten-Import</span>
+        </button>
+        <button type="button" class="logo-menu-item" data-menu="verwaltung">
+          <span>Verwaltung</span>
+        </button>
       </div>
     </div>
     <div class="search-wrap">
@@ -616,6 +641,26 @@
       <button class="modal-close" id="avisierung-close">&times;</button>
     </div>
     <div class="modal-body" id="avisierung-body"></div>
+  </div>
+</div>
+
+<div id="import-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="import-title">Daten-Import</h3>
+      <button class="modal-close" id="import-close">&times;</button>
+    </div>
+    <div class="modal-body" id="import-body"></div>
+  </div>
+</div>
+
+<div id="verwaltung-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="verwaltung-title">Verwaltung</h3>
+      <button class="modal-close" id="verwaltung-close">&times;</button>
+    </div>
+    <div class="modal-body" id="verwaltung-body"></div>
   </div>
 </div>
 
@@ -1466,6 +1511,8 @@ if(logoBtn){
       if(menu === 'schieber') openSchieber();
       if(menu === 'grenzwerte') openGrenzwerte();
       if(menu === 'avisierung') openAvisierung();
+      if(menu === 'import') openImport();
+      if(menu === 'verwaltung') openVerwaltung();
     });
   });
 }
@@ -1938,6 +1985,170 @@ $('#avisierung-close').addEventListener('click', closeAvisierung);
 $('#avisierung-overlay').addEventListener('click', (e) => {
   if(e.target.id === 'avisierung-overlay') closeAvisierung();
 });
+
+// ---- Verwaltung ----
+function openVerwaltung(){
+  const overlay = $('#verwaltung-overlay');
+  $('#verwaltung-title').textContent = 'Verwaltung';
+  const heute = new Date();
+  const jahr = heute.getFullYear();
+
+  $('#verwaltung-body').innerHTML = `
+    <div class="verw-section">
+      <h4>Analysedaten archivieren</h4>
+      <p>Analysedaten-Excel hochladen (Kathrin, Ralph oder Daniel). Die Daten werden dauerhaft im Dashboard gespeichert und können danach nicht mehr verloren gehen.</p>
+      <div class="verw-upload-area" id="upload-area">
+        <input type="file" id="upload-file" accept=".xlsx,.xls" />
+        <div class="verw-upload-label">Excel-Datei hier klicken zum Auswählen</div>
+      </div>
+      <div id="upload-result"></div>
+    </div>
+    <div class="verw-section">
+      <h4>Ersatzteile / Verrechnung herunterladen</h4>
+      <p>Alle Services mit Ersatzteilen im gewählten Zeitraum als Excel herunterladen.</p>
+      <div class="verw-datum-row">
+        <label>Von:</label>
+        <input type="date" id="verr-von" value="${jahr}-01-01" />
+        <label>Bis:</label>
+        <input type="date" id="verr-bis" value="${jahr}-12-31" />
+        <button type="button" class="strecke-btn" id="verr-btn">Herunterladen</button>
+      </div>
+      <div id="verr-result"></div>
+    </div>
+  `;
+  overlay.classList.add('open');
+
+  // Upload-Logik
+  const area = document.getElementById('upload-area');
+  const fileInput = document.getElementById('upload-file');
+  area.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if(!file) return;
+    const resultEl = document.getElementById('upload-result');
+    resultEl.innerHTML = '<div class="verw-result ok">Wird hochgeladen und verarbeitet…</div>';
+    const fd = new FormData();
+    fd.append('datei', file);
+    try {
+      const r = await fetch('/api/upload/analysedaten', { method:'POST', body: fd });
+      const d = await r.json();
+      if(d.ok){
+        resultEl.innerHTML = `<div class="verw-result ok">
+          ✓ <strong>${escapeHtml(file.name)}</strong> erfolgreich archiviert.<br>
+          ${d.gesamt} Einträge verarbeitet, ${d.zugeordnet} zugeordnet, ${d.aktualisiert} aktualisiert, ${d.nichtGefunden} Kunden nicht gefunden.
+        </div>`;
+      } else {
+        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error)}</div>`;
+      }
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Fehler beim Hochladen.</div>';
+    }
+    fileInput.value = '';
+  });
+
+  // Verrechnungs-Download
+  document.getElementById('verr-btn').addEventListener('click', () => {
+    const von = document.getElementById('verr-von').value;
+    const bis = document.getElementById('verr-bis').value;
+    if(!von || !bis) return;
+    // DD.MM.YYYY Format für API
+    const vonF = von.split('-').reverse().join('.');
+    const bisF = bis.split('-').reverse().join('.');
+    window.open(`/api/verrechnung?von=${encodeURIComponent(vonF)}&bis=${encodeURIComponent(bisF)}&format=xlsx`, '_blank');
+  });
+}
+
+function closeVerwaltung(){
+  $('#verwaltung-overlay').classList.remove('open');
+}
+$('#verwaltung-close').addEventListener('click', closeVerwaltung);
+$('#verwaltung-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'verwaltung-overlay') closeVerwaltung();
+});
+
+// ---- Daten-Import ----
+async function openImport(){
+  const overlay = $('#import-overlay');
+  $('#import-title').textContent = 'Daten-Import';
+  overlay.classList.add('open');
+
+  // Archiv-Info laden
+  let archivHtml = '';
+  try{
+    const r = await fetch('/api/import/archiv');
+    const d = await r.json();
+    const jahre = Object.entries(d.proJahr).sort((a,b) => b[0].localeCompare(a[0]));
+    archivHtml = `<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line);">
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-soft);font-weight:600;margin-bottom:8px;">Archivierte Analysedaten</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Total: ${d.total} Einträge</div>
+      ${jahre.map(([j,n]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;"><span>${j}</span><strong>${n}</strong></div>`).join('')}
+    </div>`;
+  }catch(e){}
+
+  $('#import-body').innerHTML = `
+    <div style="padding:8px;">
+      <p style="font-size:14px;color:var(--ink-soft);margin:0 0 16px;">
+        Analysedaten-Excel hochladen (Kathrin, Ralph oder Daniel). Die Daten werden dauerhaft im Dashboard gespeichert und können nicht mehr gelöscht werden.
+      </p>
+      <div style="border:2px dashed var(--line);border-radius:10px;padding:24px;text-align:center;margin-bottom:12px;" id="import-drop">
+        <input type="file" id="import-file" accept=".xlsx,.xls" style="display:none;" />
+        <button type="button" class="strecke-btn" onclick="document.getElementById('import-file').click()">Excel-Datei auswählen</button>
+        <div id="import-filename" style="margin-top:8px;font-size:13px;color:var(--ink-soft);"></div>
+      </div>
+      <button type="button" class="strecke-btn" id="import-btn" disabled style="width:100%;padding:14px;font-size:15px;font-weight:700;background:var(--accent-soft);border-color:var(--accent);">
+        Analysedaten importieren
+      </button>
+      <div id="import-result" style="margin-top:12px;"></div>
+      ${archivHtml}
+    </div>
+  `;
+
+  document.getElementById('import-file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if(f){
+      document.getElementById('import-filename').textContent = f.name;
+      document.getElementById('import-btn').disabled = false;
+    }
+  });
+
+  document.getElementById('import-btn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('import-file');
+    const file = fileInput.files[0];
+    if(!file) return;
+    const btn = document.getElementById('import-btn');
+    const resultEl = document.getElementById('import-result');
+    btn.disabled = true; btn.textContent = 'Wird importiert…';
+    
+    const formData = new FormData();
+    formData.append('datei', file);
+    
+    try{
+      const r = await fetch('/api/import/analysedaten', { method: 'POST', body: formData });
+      const d = await r.json();
+      if(d.ok){
+        resultEl.innerHTML = `
+          <div style="background:#E8F5E9;border-radius:8px;padding:14px;font-size:14px;">
+            <div style="font-weight:700;color:#2E7D32;margin-bottom:6px;">✓ Import erfolgreich – ${escapeHtml(d.dateiname)}</div>
+            <div>${d.zugeordnet} Analysedaten zugeordnet</div>
+            ${d.korrigiert ? `<div>${d.korrigiert} Termine korrigiert (verschobene Touren)</div>` : ''}
+            ${d.neuTermine ? `<div>${d.neuTermine} neue Termine ergänzt</div>` : ''}
+            ${d.nichtGefunden ? `<div style="color:var(--amber);">${d.nichtGefunden} Kunden nicht in der Datenbank</div>` : ''}
+            <div style="margin-top:6px;font-weight:600;">Total Analysedaten im Archiv: ${d.totalAnalysedaten}</div>
+          </div>
+        `;
+      } else {
+        resultEl.innerHTML = `<div style="color:#C62828;">${escapeHtml(d.error)}</div>`;
+      }
+    }catch(err){
+      resultEl.innerHTML = '<div style="color:#C62828;">Fehler beim Import.</div>';
+    }
+    btn.textContent = 'Analysedaten importieren'; btn.disabled = false;
+  });
+}
+
+function closeImport(){ $('#import-overlay').classList.remove('open'); }
+$('#import-close').addEventListener('click', closeImport);
+$('#import-overlay').addEventListener('click', (e) => { if(e.target.id === 'import-overlay') closeImport(); });
 
 checkSession();
 </script>

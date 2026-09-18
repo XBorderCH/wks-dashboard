@@ -2,6 +2,10 @@ const express = require('express');
 const session = require('express-session');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
+const XLSX = require('xlsx');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -967,6 +971,373 @@ app.get('/api/lager/debug', requireAuth, async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+});
+
+// ---- Analysedaten-Upload (Jahresarchivierung) ----
+function parseAnalyseUpload(filePath) {
+  const wb = XLSX.readFile(filePath, { cellDates: true });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+  // Header-Zeile finden (sucht nach 'KdNr')
+  function norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+  let headerRow = -1, kdnrIdx = -1, datSIdx = -1, startIdx = 0;
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const zeile = rows[r] || [];
+    const ki = zeile.findIndex(v => norm(v) === 'kdnr');
+    if (ki !== -1) { headerRow = r; kdnrIdx = ki; break; }
+  }
+  if (headerRow === -1) {
+    // Ohne Header: KdNr in Spalte A, Dat_S in Spalte L
+    kdnrIdx = 0; datSIdx = 11; startIdx = 0;
+  } else {
+    startIdx = headerRow + 1;
+    const hz = rows[headerRow];
+    const di = hz.findIndex(v => norm(v) === 'dat_s' || norm(v) === 'datum service');
+    datSIdx = di !== -1 ? di : kdnrIdx + 14;
+  }
+
+  // Geruch-Block-Offset bestimmen
+  let geruchOffset = 0;
+  if (headerRow >= 0) {
+    const hz = rows[headerRow];
+    const gi = hz.findIndex((v, i) => i > datSIdx && norm(v) === 'kein');
+    geruchOffset = (gi !== -1 ? gi : 20) - 20;
+  } else {
+    geruchOffset = 13 - 20;
+  }
+
+  function col(letter) {
+    let n = 0;
+    for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
+    const ref = n - 1;
+    if (letter === 'D') return kdnrIdx;
+    if (letter === 'S') return datSIdx;
+    return ref + geruchOffset;
+  }
+
+  function clean(v) {
+    if (v === null || v === undefined) return null;
+    const s = String(v).trim();
+    if (!s || s.toLowerCase() === 'nan' || s.toLowerCase() === 'nat') return null;
+    return s;
+  }
+  function istX(v) { return v !== null && v !== undefined && String(v).trim().toLowerCase() === 'x'; }
+  function fmtDate(v) {
+    if (!(v instanceof Date) || isNaN(v.getTime())) return null;
+    if (v.getFullYear() < 1950) return null;
+    return `${String(v.getDate()).padStart(2,'0')}.${String(v.getMonth()+1).padStart(2,'0')}.${v.getFullYear()}`;
+  }
+  function cbGroup(row, wortSpalten, beschriebSpalte, trenner) {
+    const w = [];
+    wortSpalten.forEach(([sp, wort]) => { if (istX(row[col(sp)])) w.push(wort); });
+    let text = w.join(trenner);
+    const b = beschriebSpalte ? clean(row[col(beschriebSpalte)]) : null;
+    if (b) text = text ? `${text} (${b})` : b;
+    return text || null;
+  }
+
+  const eintraege = [];
+  for (let i = startIdx; i < rows.length; i++) {
+    const row = rows[i]; if (!row) continue;
+    const kdnr = clean(row[kdnrIdx]); if (!kdnr) continue;
+    const datum = fmtDate(row[datSIdx]); if (!datum) continue;
+
+    const geruch = cbGroup(row, [['U','kein'],['V','leicht'],['W','stark'],['X','faulig'],['Y','erdig'],['Z','andere']], 'AA', ' ');
+    const farbe = cbGroup(row, [['AB','klar'],['AC','trüb'],['AD','gelblich'],['AE','bräunlich'],['AF','gräulich'],['AG','andere']], 'AH', ' / ');
+    const schlammAblauf = cbGroup(row, [['AI','kein'],['AJ','wenig'],['AK','viel']], null, ' ');
+    const hbJa = istX(row[col('BC')]); const hbNein = istX(row[col('BD')]);
+    let handlungsbedarf = null;
+    if (hbJa) handlungsbedarf = 'Ja'; else if (hbNein) handlungsbedarf = 'Nein';
+
+    const IMMER = [['AL','pH'],['AM','O2 A'],['AN','Temp A'],['AO','DS'],['AV','Amm.'],['AX','CSB']];
+    const OPT = [['AP','Bewuchs'],['AQ','Schlammfarbe'],['AR','O2 BB'],['AS','Temp'],['AT','BB'],['AU','NB'],
+      ['AW','Ab.Vol.'],['AY','Stunden'],['AZ','Nitrit'],['BA','Absaugen'],['BB','Monteur'],
+      ['BK','Betriebsjournal'],['BL','Phosphat'],['BM','GUS'],['BN','Wetter'],['BO','DOC']];
+    const BEM = [['BE','Bemerkungen'],['BF','Bem. AWEL'],['BG','Vermerk WKS'],['BH','Ersatzteile'],['BI','Nächster Service'],['BJ','Büro Information']];
+
+    eintraege.push({
+      kdnr: String(kdnr).replace(/\.0$/, ''),
+      datum,
+      geruch, farbe, schlammAblauf, handlungsbedarf,
+      messwerteImmer: IMMER.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) ?? 'k.A.' })),
+      messwerteOptional: OPT.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert !== null),
+      bemerkungen: BEM.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert !== null),
+    });
+  }
+  return eintraege;
+}
+
+app.post('/api/upload/analysedaten', requireAuth, upload.single('datei'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+
+  try {
+    const eintraege = parseAnalyseUpload(req.file.path);
+
+    let zugeordnet = 0, nichtGefunden = 0, aktualisiert = 0;
+    const kundenByKdnr = {};
+    kunden.forEach(k => { if (k.kdnr) kundenByKdnr[k.kdnr] = k; });
+
+    eintraege.forEach(e => {
+      const kunde = kundenByKdnr[e.kdnr];
+      if (!kunde) { nichtGefunden++; return; }
+
+      if (!kunde.analysedaten) kunde.analysedaten = [];
+      const bestehend = kunde.analysedaten.findIndex(a => a.datum === e.datum);
+      const eintrag = { datum: e.datum, geruch: e.geruch, farbe: e.farbe, schlammAblauf: e.schlammAblauf,
+        handlungsbedarf: e.handlungsbedarf, messwerteImmer: e.messwerteImmer,
+        messwerteOptional: e.messwerteOptional, bemerkungen: e.bemerkungen };
+
+      if (bestehend >= 0) { kunde.analysedaten[bestehend] = eintrag; aktualisiert++; }
+      else { kunde.analysedaten.push(eintrag); }
+      kunde.analysedaten.sort((a,b) => a.datum.split('.').reverse().join('').localeCompare(b.datum.split('.').reverse().join('')));
+      zugeordnet++;
+    });
+
+    // Speichern
+    const p = path.join(__dirname, 'data', 'kunden.json');
+    fs.writeFileSync(p, JSON.stringify(kunden, null, 2), 'utf-8');
+
+    // Cleanup
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+
+    res.json({ ok: true, gesamt: eintraege.length, zugeordnet, aktualisiert, nichtGefunden });
+  } catch (err) {
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---- Verrechnung (Download mit Datumsfilter) ----
+app.get('/api/verrechnung', requireAuth, (req, res) => {
+  const von = req.query.von || '01.01.2000';
+  const bis = req.query.bis || '31.12.2099';
+
+  function parseDat(v) {
+    const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return null;
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  }
+  const vonD = parseDat(von); const bisD = parseDat(bis);
+
+  const zeilen = [];
+  kunden.forEach(k => {
+    if (!k.kdnr) return;
+    const p = k.planung || {};
+    (k.analysedaten || []).forEach(ad => {
+      // Ersatzteile aus Bemerkungen
+      let ersatzteile = '';
+      (ad.bemerkungen || []).forEach(b => { if (b.label === 'Ersatzteile') ersatzteile = b.wert || ''; });
+      if (!ersatzteile) return;
+
+      const d = parseDat(ad.datum);
+      if (!d) return;
+      if (vonD && d < vonD) return;
+      if (bisD && d > bisD) return;
+
+      zeilen.push({
+        kdnr: k.kdnr, name: k.kdnrName || '', datum: ad.datum,
+        fahrer: p.fahrer || '', ersatzteile, kanton: p.zustKt || '',
+      });
+    });
+  });
+
+  zeilen.sort((a,b) => a.datum.split('.').reverse().join('').localeCompare(b.datum.split('.').reverse().join('')));
+
+  if (req.query.format === 'xlsx') {
+    // Excel-Download
+    const wb = XLSX.utils.book_new();
+    const data = [['KdNr','Kunde','Datum','Fahrer','Kanton','Ersatzteile']];
+    zeilen.forEach(z => data.push([z.kdnr, z.name, z.datum, z.fahrer, z.kanton, z.ersatzteile]));
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:8},{wch:32},{wch:12},{wch:10},{wch:6},{wch:45}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Ersatzteile');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Disposition', `attachment; filename=WKS_Ersatzteile_${von.replace(/\./g,'')}_${bis.replace(/\./g,'')}.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    return res.send(buf);
+  }
+
+  res.json({ zeilen, total: zeilen.length });
+});
+
+// ---- Daten-Import (Analysedaten-Upload + Archivierung) ----
+app.post('/api/import/analysedaten', requireAuth, upload.single('datei'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+
+  try {
+    const wb = XLSX.read(req.file.buffer, { cellDates: true });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+    // Layout erkennen (Header-Zeile per Namenssuche)
+    function norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+    let headerRowIndex = -1, kdnrIdx = -1, datSIdx = -1, geruchOffset = 0;
+
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      const zeile = rows[r] || [];
+      const ki = zeile.findIndex(v => norm(v) === 'kdnr');
+      if (ki !== -1) { headerRowIndex = r; kdnrIdx = ki; break; }
+    }
+
+    if (headerRowIndex >= 0) {
+      const hz = rows[headerRowIndex];
+      const di = hz.findIndex(v => norm(v) === 'dat_s');
+      datSIdx = di >= 0 ? di : kdnrIdx + 15;
+      const gi = hz.findIndex((v, i) => i > datSIdx && norm(v) === 'kein');
+      geruchOffset = (gi >= 0 ? gi : 20) - 20;
+    } else {
+      // Ohne Header
+      headerRowIndex = -1; kdnrIdx = 0; datSIdx = 11; geruchOffset = 13 - 20;
+    }
+    const startIdx = headerRowIndex + 1;
+
+    function col(letter) {
+      if (letter === 'D') return kdnrIdx;
+      if (letter === 'S') return datSIdx;
+      let n = 0;
+      for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
+      return n - 1 + geruchOffset;
+    }
+
+    function clean(v) {
+      if (v === null || v === undefined) return null;
+      const s = String(v).trim();
+      if (!s || s.toLowerCase() === 'nan' || s.toLowerCase() === 'nat') return null;
+      return s;
+    }
+
+    function istX(v) { return v !== null && v !== undefined && String(v).trim().toLowerCase() === 'x'; }
+
+    function fmtDatum(v) {
+      if (!(v instanceof Date) || isNaN(v.getTime())) return null;
+      if (v.getFullYear() < 1950) return null;
+      return `${String(v.getDate()).padStart(2,'0')}.${String(v.getMonth()+1).padStart(2,'0')}.${v.getFullYear()}`;
+    }
+
+    function checkboxGruppe(row, wortSpalten, beschriebSpalte, trenner) {
+      const w = [];
+      wortSpalten.forEach(([sp, wort]) => { if (istX(row[col(sp)])) w.push(wort); });
+      let text = w.join(trenner);
+      const b = beschriebSpalte ? clean(row[col(beschriebSpalte)]) : null;
+      if (b) text = text ? `${text} (${b})` : b;
+      return text || null;
+    }
+
+    // Deduplizierung: beste Zeile pro KdNr+Datum
+    const beste = {};
+    for (let i = startIdx; i < rows.length; i++) {
+      const row = rows[i]; if (!row) continue;
+      const kdnr = clean(row[col('D')]); if (!kdnr) continue;
+      const datum = fmtDatum(row[col('S')]); if (!datum) continue;
+      const key = `${kdnr}|${datum}`;
+      let score = 0;
+      for (let c = col('U'); c < row.length; c++) { if (clean(row[c])) score++; }
+      if (!beste[key] || beste[key].score < score) beste[key] = { row, score };
+    }
+
+    const kundenByKdnr = {};
+    kunden.forEach(k => { kundenByKdnr[k.kdnr] = k; });
+
+    let zugeordnet = 0, nichtGefunden = 0, korrigiert = 0, neuTermine = 0;
+    const details = [];
+
+    Object.keys(beste).forEach(key => {
+      const [kdnr, datum] = key.split('|');
+      const { row } = beste[key];
+      const kunde = kundenByKdnr[kdnr];
+      if (!kunde) { nichtGefunden++; return; }
+
+      const geruch = checkboxGruppe(row, [['U','kein'],['V','leicht'],['W','stark'],['X','faulig'],['Y','erdig'],['Z','andere']], 'AA', ' ');
+      const farbe = checkboxGruppe(row, [['AB','klar'],['AC','trüb'],['AD','gelblich'],['AE','bräunlich'],['AF','gräulich'],['AG','andere']], 'AH', ' / ');
+      const schlammAblauf = checkboxGruppe(row, [['AI','kein'],['AJ','wenig'],['AK','viel']], null, ' ');
+      const hJa = istX(row[col('BC')]); const hNein = istX(row[col('BD')]);
+      let handlungsbedarf = null;
+      if (hJa) handlungsbedarf = 'Ja'; else if (hNein) handlungsbedarf = 'Nein';
+
+      const IMMER = [['AL','pH'],['AM','O2 A'],['AN','Temp A'],['AO','DS'],['AV','Amm.'],['AX','CSB']];
+      const OPT = [['AP','Bewuchs'],['AQ','Schlammfarbe'],['AR','O2 BB'],['AS','Temp'],['AT','BB'],['AU','NB'],
+        ['AW','Ab.Vol.'],['AY','Stunden'],['AZ','Nitrit'],['BA','Absaugen'],['BB','Monteur'],
+        ['BK','Betriebsjournal'],['BL','Phosphat'],['BM','GUS'],['BN','Wetter'],['BO','DOC']];
+      const BEM = [['BE','Bemerkungen'],['BF','Bem. AWEL'],['BG','Vermerk WKS'],['BH','Ersatzteile'],['BI','Nächster Service'],['BJ','Büro Information']];
+
+      const messwerteImmer = IMMER.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) ?? 'k.A.' }));
+      const messwerteOptional = OPT.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert);
+      const bemerkungen = BEM.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert);
+
+      // Termin-Abgleich
+      let termin = (kunde.termine || []).find(t => t.datum === datum);
+      if (!termin) {
+        // Nahen Termin suchen (±30 Tage)
+        const ziel = new Date(datum.split('.')[2], datum.split('.')[1]-1, datum.split('.')[0]);
+        let bester = null, besterAbs = Infinity;
+        (kunde.termine || []).forEach(t => {
+          const m = (t.datum||'').match(/^(\d+)\.(\d+)\.(\d+)$/);
+          if (!m) return;
+          const d = new Date(m[3], m[2]-1, m[1]);
+          const abs = Math.abs(d - ziel) / 86400000;
+          if (abs <= 30 && abs < besterAbs) { bester = t; besterAbs = abs; }
+        });
+        if (bester) { bester.datum = datum; korrigiert++; termin = bester; }
+        else {
+          const d = new Date(datum.split('.')[2], datum.split('.')[1]-1, datum.split('.')[0]);
+          const nt = { halbjahr: null, jahr: d ? String(d.getFullYear()) : null, datum };
+          if (!kunde.termine) kunde.termine = [];
+          kunde.termine.push(nt); neuTermine++; termin = nt;
+        }
+      }
+
+      if (!kunde.analysedaten) kunde.analysedaten = [];
+      kunde.analysedaten = kunde.analysedaten.filter(a => a.datum !== datum);
+      kunde.analysedaten.push({ datum, geruch, farbe, schlammAblauf, handlungsbedarf, messwerteImmer, messwerteOptional, bemerkungen });
+      kunde.analysedaten.sort((a, b) => (a.datum||'').split('.').reverse().join('').localeCompare((b.datum||'').split('.').reverse().join('')));
+      zugeordnet++;
+    });
+
+    // Halbjahr-Fix
+    kunden.forEach(k => {
+      const jahre = {};
+      (k.termine || []).forEach(t => { if (t.jahr && t.datum) { if (!jahre[t.jahr]) jahre[t.jahr] = []; jahre[t.jahr].push(t); } });
+      Object.values(jahre).forEach(tl => {
+        if (tl.length < 2) return;
+        tl.sort((a,b) => (a.datum||'').split('.').reverse().join('').localeCompare((b.datum||'').split('.').reverse().join('')));
+        tl[0].halbjahr = '1';
+        for (let i = 1; i < tl.length; i++) tl[i].halbjahr = '2';
+      });
+    });
+
+    // Speichern
+    const kundenPfad = path.join(__dirname, 'data', 'kunden.json');
+    fs.writeFileSync(kundenPfad, JSON.stringify(kunden, null, 2));
+    loadData(); // Neu laden
+
+    const total = kunden.reduce((s, k) => s + (k.analysedaten ? k.analysedaten.length : 0), 0);
+
+    res.json({
+      ok: true,
+      zugeordnet,
+      nichtGefunden,
+      korrigiert,
+      neuTermine,
+      totalAnalysedaten: total,
+      dateiname: req.file.originalname,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Archiv-Info: wie viele Analysedaten pro Jahr
+app.get('/api/import/archiv', requireAuth, (req, res) => {
+  const proJahr = {};
+  kunden.forEach(k => {
+    (k.analysedaten || []).forEach(a => {
+      const jahr = a.datum ? a.datum.split('.')[2] : '?';
+      proJahr[jahr] = (proJahr[jahr] || 0) + 1;
+    });
+  });
+  const total = kunden.reduce((s, k) => s + (k.analysedaten ? k.analysedaten.length : 0), 0);
+  res.json({ proJahr, total });
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
