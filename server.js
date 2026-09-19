@@ -461,6 +461,7 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
   let ausgewertet = 0;
   let fehlerAnzahl = 0;
   const fehlerDetails = [];
+  const proFahrer = {}; // { 'Ralph': {km, minuten, tage}, 'Kathrin': {...} }
 
   const PARALLEL = 6;
   let index = 0;
@@ -475,10 +476,17 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
         totalKm += erg.km;
         totalMinuten += erg.dauerMinuten;
         ausgewertet++;
+        if (!proFahrer[fahrer]) proFahrer[fahrer] = { km: 0, minuten: 0, tage: 0 };
+        proFahrer[fahrer].km += erg.km;
+        proFahrer[fahrer].minuten += erg.dauerMinuten;
+        proFahrer[fahrer].tage++;
       }
     }
   }
   await Promise.all(Array.from({ length: PARALLEL }, worker));
+
+  // Pro Fahrer runden
+  Object.values(proFahrer).forEach(f => { f.km = Math.round(f.km * 10) / 10; });
 
   res.json({
     jahr,
@@ -488,6 +496,7 @@ app.get('/api/tage/summe', requireAuth, async (req, res) => {
     tageGesamt: aufgaben.length,
     fehlerAnzahl,
     fehlerDetails,
+    proFahrer,
   });
 });
 
@@ -881,6 +890,7 @@ app.get('/api/lager', requireAuth, async (req, res) => {
                     sku
                     inventoryQuantity
                     displayName
+                    price
                   }
                 }
               }
@@ -908,6 +918,7 @@ app.get('/api/lager', requireAuth, async (req, res) => {
             name: prod.title,
             nummer: sku,
             bestand: v.inventoryQuantity ?? 0,
+            preis: v.price || null,
           });
         } else {
           // Mehrere Varianten: jede einzeln auflisten
@@ -918,6 +929,7 @@ app.get('/api/lager', requireAuth, async (req, res) => {
               name: v.displayName || prod.title,
               nummer: sku,
               bestand: v.inventoryQuantity ?? 0,
+              preis: v.price || null,
             });
           });
         }

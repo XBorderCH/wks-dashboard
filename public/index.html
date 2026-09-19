@@ -555,9 +555,6 @@
         <button type="button" class="logo-menu-item" data-menu="avisierung">
           <span>Avisierung</span>
         </button>
-        <button type="button" class="logo-menu-item" data-menu="import">
-          <span>Daten-Import</span>
-        </button>
         <button type="button" class="logo-menu-item" data-menu="verwaltung">
           <span>Verwaltung</span>
         </button>
@@ -1611,6 +1608,21 @@ async function ladeJahresstrecke(){
     const dauerText = `${std} Std ${min} Min`;
     let text = `Total Kilometer ${d.jahr}: <strong>${d.totalKm.toLocaleString('de-CH')} km</strong>`;
     text += `<br>Total Fahrzeit ${d.jahr}: <strong>${dauerText}</strong>`;
+
+    // Pro Fahrer aufschlüsseln
+    if(d.proFahrer){
+      text += '<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px;">';
+      Object.entries(d.proFahrer).sort((a,b) => a[0].localeCompare(b[0])).forEach(([name, f]) => {
+        const fStd = Math.floor(f.minuten / 60);
+        const fMin = f.minuten % 60;
+        text += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13.5px;">`;
+        text += `<span style="font-weight:600;">${escapeHtml(name)}</span>`;
+        text += `<span>${f.km.toLocaleString('de-CH')} km · ${fStd} Std ${fMin} Min · ${f.tage} Tage</span>`;
+        text += `</div>`;
+      });
+      text += '</div>';
+    }
+
     if(d.fehlerAnzahl > 0){
       text += ` <span class="route-hinweis">(${d.fehlerAnzahl} Tag${d.fehlerAnzahl>1?'e':''} konnte${d.fehlerAnzahl>1?'n':''} nicht berechnet werden)</span>`;
       if(d.fehlerDetails && d.fehlerDetails.length){
@@ -1677,11 +1689,12 @@ async function openLager(){
     html += artikel.map(a => {
       const bestandText = a.bestand !== null ? String(a.bestand) : '?';
       const bestandClass = a.bestand === 0 ? 'null' : (a.bestand > 0 ? 'positiv' : '');
+      const preisText = a.preis ? `CHF ${parseFloat(a.preis).toFixed(2)}` : '';
       return `
         <div class="lager-item">
           <div>
             <div class="lager-name">${escapeHtml(a.name)}</div>
-            ${a.nummer ? `<div class="lager-nummer">${escapeHtml(a.nummer)}</div>` : ''}
+            ${a.nummer ? `<div class="lager-nummer">${escapeHtml(a.nummer)}${preisText ? ` · ${preisText}` : ''}</div>` : (preisText ? `<div class="lager-nummer">${preisText}</div>` : '')}
           </div>
           <div class="lager-bestand ${bestandClass}">${escapeHtml(bestandText)}</div>
         </div>
