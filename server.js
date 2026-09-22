@@ -5,6 +5,7 @@ const path = require('path');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const ExcelJS = require('exceljs');
+const { syncVonDrive, ORDNER_ID } = require('./drive-sync');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 
@@ -1184,6 +1185,72 @@ app.post('/api/sicherung/einspielen', requireAuth, upload.single('datei'), (req,
     res.status(500).json({ error: err.message });
   }
 });
+
+// ---- Google-Drive-Sync ----
+let syncLaeuft = false;
+const SYNC_STATE = path.join(DATA_DIR, 'sync-state.json');
+
+function ladeSyncState() {
+  try { return JSON.parse(fs.readFileSync(SYNC_STATE, 'utf-8')); } catch (e) { return {}; }
+}
+
+function speichereSyncState(state) {
+  try { fs.writeFileSync(SYNC_STATE, JSON.stringify(state, null, 2), 'utf-8'); } catch (e) {}
+}
+
+app.get('/api/sync/status', requireAuth, (req, res) => {
+  const state = ladeSyncState();
+  res.json({
+    konfiguriert: !!process.env.GOOGLE_SERVICE_ACCOUNT,
+    ordnerId: ORDNER_ID,
+    laeuft: syncLaeuft,
+    letzterSync: state.letzterSync || null,
+    letzterBericht: state.letzterBericht || null,
+    letzterFehler: state.letzterFehler || null,
+  });
+});
+
+async function fuehreSyncAus() {
+  if (syncLaeuft) throw new Error('Es läuft bereits ein Sync.');
+  syncLaeuft = true;
+  try {
+    const bericht = await syncVonDrive(kunden);
+    fs.writeFileSync(KUNDEN_PFAD, JSON.stringify(kunden, null, 2), 'utf-8');
+    speichereSyncState({
+      letzterSync: new Date().toISOString(),
+      letzterBericht: bericht,
+      letzterFehler: null,
+    });
+    console.log('Drive-Sync abgeschlossen:', JSON.stringify(bericht.analysen));
+    return bericht;
+  } catch (err) {
+    const state = ladeSyncState();
+    state.letzterFehler = { zeit: new Date().toISOString(), text: err.message };
+    speichereSyncState(state);
+    throw err;
+  } finally {
+    syncLaeuft = false;
+  }
+}
+
+app.post('/api/sync/jetzt', requireAuth, async (req, res) => {
+  try {
+    const bericht = await fuehreSyncAus();
+    res.json({ ok: true, bericht });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Automatischer Sync: jeden Sonntag um 22:00 Uhr, Prüfung stündlich
+setInterval(() => {
+  const jetzt = new Date();
+  if (jetzt.getDay() !== 0 || jetzt.getHours() !== 22) return;
+  const state = ladeSyncState();
+  if (state.letzterSync && (Date.now() - new Date(state.letzterSync).getTime()) < 6 * 3600 * 1000) return;
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT) return;
+  fuehreSyncAus().catch(err => console.error('Automatischer Drive-Sync fehlgeschlagen:', err.message));
+}, 30 * 60 * 1000);
 
 // ---- Datenkorrektur ----
 // Servicetag korrigieren: Termine und Analysedaten von einem Datum auf ein

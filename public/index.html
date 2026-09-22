@@ -2181,6 +2181,14 @@ async function openVerwaltung(){
       <div id="upload-result"></div>
     </div>
     <div class="verw-section">
+      <h4>Google Drive Sync</h4>
+      <p id="sync-info">Lade Status…</p>
+      <div class="verw-datum-row">
+        <button type="button" class="strecke-btn" id="sync-btn">Jetzt synchronisieren</button>
+      </div>
+      <div id="sync-result"></div>
+    </div>
+    <div class="verw-section">
       <h4>Servicetag korrigieren</h4>
       <p>Verschiebt Termine und Analysedaten von einem Datum auf ein anderes – etwa wenn eine Tour verschoben, aber mit dem alten Datum rapportiert wurde. Liegt am Zieldatum bereits ein Analyseeintrag, wird der vom Quelldatum als Duplikat entfernt.</p>
       <div class="verw-datum-row">
@@ -2253,6 +2261,54 @@ async function openVerwaltung(){
       resultEl.innerHTML = '<div class="verw-result err">Fehler beim Hochladen.</div>';
     }
     fileInput.value = '';
+  });
+
+  // Google Drive Sync
+  function syncInfoText(d){
+    if(!d.konfiguriert) return 'Nicht eingerichtet: die Umgebungsvariable GOOGLE_SERVICE_ACCOUNT fehlt.';
+    let txt = 'Liest Stammdaten.xlsx und die drei Analyse-Dateien aus dem Drive-Ordner. Läuft automatisch jeden Sonntag um 22 Uhr.';
+    if(d.letzterSync){
+      const dt = new Date(d.letzterSync);
+      txt += ` Letzter Sync: ${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} Uhr.`;
+    } else {
+      txt += ' Bisher noch nie ausgeführt.';
+    }
+    if(d.letzterFehler) txt += ` Letzter Fehler: ${d.letzterFehler.text}`;
+    return txt;
+  }
+
+  async function ladeSyncStatus(){
+    try {
+      const r = await fetch('/api/sync/status');
+      const d = await r.json();
+      document.getElementById('sync-info').textContent = syncInfoText(d);
+    } catch(e) {
+      document.getElementById('sync-info').textContent = 'Status konnte nicht geladen werden.';
+    }
+  }
+  ladeSyncStatus();
+
+  document.getElementById('sync-btn').addEventListener('click', async () => {
+    const resultEl = document.getElementById('sync-result');
+    resultEl.innerHTML = '<div class="verw-result ok">Dateien werden von Google Drive geladen…</div>';
+    try {
+      const r = await fetch('/api/sync/jetzt', { method: 'POST' });
+      const d = await r.json();
+      if(d.ok){
+        const b = d.bericht;
+        let txt = '✓ Sync abgeschlossen.';
+        if(b.stammdaten) txt += ` Stammdaten: ${b.stammdaten.aktualisiert} aktualisiert, ${b.stammdaten.neu} neu.`;
+        if(b.planung) txt += ` Planung: ${b.planung.termineNeu} neue Termine, ${b.planung.termineGeaendert} Zeiten geändert.`;
+        if(b.analysen) txt += ` Analysedaten: ${b.analysen.neu} neu, ${b.analysen.aktualisiert} aktualisiert, ${b.analysen.nichtGefunden} ohne passende Kundennummer.`;
+        if(b.fehlend && b.fehlend.length) txt += ` Nicht gefunden im Ordner: ${b.fehlend.join(', ')}.`;
+        resultEl.innerHTML = `<div class="verw-result ok">${escapeHtml(txt)}</div>`;
+        ladeSyncStatus();
+      } else {
+        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error || 'Fehler')}</div>`;
+      }
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Sync fehlgeschlagen.</div>';
+    }
   });
 
   // Servicetag korrigieren
