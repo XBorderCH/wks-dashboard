@@ -2172,21 +2172,49 @@ async function openVerwaltung(){
 
   $('#verwaltung-body').innerHTML = `
     <div class="verw-section">
-      <h4>Analysedaten archivieren</h4>
-      <p>Analysedaten-Excel hochladen (Kathrin, Ralph oder Daniel). Die Daten werden dauerhaft im Dashboard gespeichert und können danach nicht mehr verloren gehen.</p>
-      <div class="verw-upload-area" id="upload-area">
-        <input type="file" id="upload-file" accept=".xlsx,.xls" />
-        <div class="verw-upload-label">Excel-Datei hier klicken zum Auswählen</div>
-      </div>
-      <div id="upload-result"></div>
-    </div>
-    <div class="verw-section">
-      <h4>Google Drive Sync</h4>
+      <h4>Analysedaten aktualisieren</h4>
       <p id="sync-info">Lade Status…</p>
       <div class="verw-datum-row">
-        <button type="button" class="strecke-btn" id="sync-btn">Jetzt synchronisieren</button>
+        <select id="sync-quelle">
+          <option value="alle">Alle Fahrer</option>
+          <option value="kathrin">Nur Kathrin</option>
+          <option value="ralph">Nur Ralph</option>
+          <option value="daniel">Nur Daniel</option>
+        </select>
+        <button type="button" class="strecke-btn" id="sync-btn">Jetzt aktualisieren</button>
       </div>
       <div id="sync-result"></div>
+    </div>
+    <div class="verw-section">
+      <h4>Stammdaten und Planung</h4>
+      <p id="stamm-info">Werden stündlich automatisch aus dem Drive geholt.</p>
+      <div class="verw-datum-row">
+        <button type="button" class="strecke-btn" id="stamm-btn">Jetzt aktualisieren</button>
+      </div>
+      <div id="stamm-result"></div>
+    </div>
+    <div class="verw-section">
+      <h4>Verrechnung herunterladen</h4>
+      <p>Alle Services im gewählten Zeitraum, die verrechnet werden müssen: Kunden mit 1 Service pro Jahr (mit Wartungsgebühr) sowie alle Kunden mit notierten Ersatzteilen. Kunden mit 2 Services ohne Ersatzteile werden weggelassen.</p>
+      <div id="verr-letzter" style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">${letzterDownloadText(meta)}</div>
+      <div class="verw-datum-row">
+        <label>Von:</label>
+        <input type="date" id="verr-von" value="${meta.vonVorschlag}" />
+        <label>Bis:</label>
+        <input type="date" id="verr-bis" value="${meta.bisVorschlag}" />
+        <button type="button" class="strecke-btn" id="verr-btn">Herunterladen</button>
+      </div>
+      <div id="verr-result"></div>
+    </div>
+    <div class="verw-section">
+      <h4>Datensicherung</h4>
+      <p id="sich-info">Lade Übersicht…</p>
+      <div class="verw-datum-row">
+        <button type="button" class="strecke-btn" id="sich-btn">Sicherung herunterladen</button>
+        <button type="button" class="strecke-btn" id="sich-restore-btn">Sicherung einspielen</button>
+        <input type="file" id="sich-file" accept=".json" style="display:none" />
+      </div>
+      <div id="sich-result"></div>
     </div>
     <div class="verw-section">
       <h4>Servicetag korrigieren</h4>
@@ -2209,70 +2237,18 @@ async function openVerwaltung(){
       </div>
       <div id="korr-result"></div>
     </div>
-    <div class="verw-section">
-      <h4>Datensicherung</h4>
-      <p id="sich-info">Lade Übersicht…</p>
-      <div class="verw-datum-row">
-        <button type="button" class="strecke-btn" id="sich-btn">Sicherung herunterladen</button>
-        <button type="button" class="strecke-btn" id="sich-restore-btn">Sicherung einspielen</button>
-        <input type="file" id="sich-file" accept=".json" style="display:none" />
-      </div>
-      <div id="sich-result"></div>
-    </div>
-    <div class="verw-section">
-      <h4>Verrechnung herunterladen</h4>
-      <p>Alle Services im gewählten Zeitraum, die verrechnet werden müssen: Kunden mit 1 Service pro Jahr (mit Wartungsgebühr) sowie alle Kunden mit notierten Ersatzteilen. Kunden mit 2 Services ohne Ersatzteile werden weggelassen.</p>
-      <div id="verr-letzter" style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">${letzterDownloadText(meta)}</div>
-      <div class="verw-datum-row">
-        <label>Von:</label>
-        <input type="date" id="verr-von" value="${meta.vonVorschlag}" />
-        <label>Bis:</label>
-        <input type="date" id="verr-bis" value="${meta.bisVorschlag}" />
-        <button type="button" class="strecke-btn" id="verr-btn">Herunterladen</button>
-      </div>
-      <div id="verr-result"></div>
-    </div>
   `;
   overlay.classList.add('open');
-
-  // Upload-Logik
-  const area = document.getElementById('upload-area');
-  const fileInput = document.getElementById('upload-file');
-  area.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if(!file) return;
-    const resultEl = document.getElementById('upload-result');
-    resultEl.innerHTML = '<div class="verw-result ok">Wird hochgeladen und verarbeitet…</div>';
-    const fd = new FormData();
-    fd.append('datei', file);
-    try {
-      const r = await fetch('/api/import/analysedaten', { method:'POST', body: fd });
-      const d = await r.json();
-      if(d.ok){
-        resultEl.innerHTML = `<div class="verw-result ok">
-          ✓ <strong>${escapeHtml(file.name)}</strong> erfolgreich archiviert.<br>
-          ${d.zugeordnet} Einträge zugeordnet, ${d.korrigiert} Termine korrigiert, ${d.neuTermine} neue Termine, ${d.nichtGefunden} Kunden nicht gefunden.
-        </div>`;
-      } else {
-        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error)}</div>`;
-      }
-    } catch(err) {
-      resultEl.innerHTML = '<div class="verw-result err">Fehler beim Hochladen.</div>';
-    }
-    fileInput.value = '';
-  });
 
   // Google Drive Sync
   function syncInfoText(d){
     if(!d.konfiguriert) return 'Nicht eingerichtet: die Umgebungsvariable GOOGLE_SERVICE_ACCOUNT fehlt.';
-    let txt = 'Liest Stammdaten.xlsx und die drei Analyse-Dateien aus dem Drive-Ordner. Läuft automatisch jeden Sonntag um 22 Uhr.';
-    if(d.letzterSync){
-      const dt = new Date(d.letzterSync);
-      txt += ` Letzter Sync: ${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} Uhr.`;
-    } else {
-      txt += ' Bisher noch nie ausgeführt.';
-    }
+    const fmt = (iso) => {
+      const dt = new Date(iso);
+      return `${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} Uhr`;
+    };
+    let txt = 'Schreibt die Analysedaten aus den Drive-Dateien fest in den Datenbestand. Bestehende Einträge bleiben erhalten. Läuft automatisch jeden Sonntag um 22 Uhr.';
+    txt += d.letzteArchivierung ? ` Zuletzt aktualisiert: ${fmt(d.letzteArchivierung)}.` : ' Bisher noch nie ausgeführt.';
     if(d.letzterFehler) txt += ` Letzter Fehler: ${d.letzterFehler.text}`;
     return txt;
   }
@@ -2282,6 +2258,15 @@ async function openVerwaltung(){
       const r = await fetch('/api/sync/status');
       const d = await r.json();
       document.getElementById('sync-info').textContent = syncInfoText(d);
+      const stammEl = document.getElementById('stamm-info');
+      if(stammEl){
+        let st = 'Adressen, Gebühren, Fahrer und Termine werden stündlich automatisch aus dem Drive geholt.';
+        if(d.letzteStammdaten){
+          const dt = new Date(d.letzteStammdaten);
+          st += ` Zuletzt: ${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} Uhr.`;
+        }
+        stammEl.textContent = st;
+      }
     } catch(e) {
       document.getElementById('sync-info').textContent = 'Status konnte nicht geladen werden.';
     }
@@ -2290,16 +2275,15 @@ async function openVerwaltung(){
 
   document.getElementById('sync-btn').addEventListener('click', async () => {
     const resultEl = document.getElementById('sync-result');
-    resultEl.innerHTML = '<div class="verw-result ok">Dateien werden von Google Drive geladen…</div>';
+    resultEl.innerHTML = '<div class="verw-result ok">Analysedaten werden von Google Drive geholt…</div>';
     try {
-      const r = await fetch('/api/sync/jetzt', { method: 'POST' });
+      const quelle = document.getElementById('sync-quelle').value;
+      const r = await fetch('/api/sync/jetzt?quelle=' + encodeURIComponent(quelle), { method: 'POST' });
       const d = await r.json();
       if(d.ok){
         const b = d.bericht;
-        let txt = '✓ Sync abgeschlossen.';
-        if(b.stammdaten) txt += ` Stammdaten: ${b.stammdaten.aktualisiert} aktualisiert, ${b.stammdaten.neu} neu.`;
-        if(b.planung) txt += ` Planung: ${b.planung.termineNeu} neue Termine, ${b.planung.termineGeaendert} Zeiten geändert.`;
-        if(b.analysen) txt += ` Analysedaten: ${b.analysen.neu} neu, ${b.analysen.aktualisiert} aktualisiert, ${b.analysen.nichtGefunden} ohne passende Kundennummer.`;
+        let txt = '✓ Aktualisiert.';
+        if(b.analysen) txt += ` ${b.analysen.neu} neue Analysedaten, ${b.analysen.aktualisiert} aktualisiert, ${b.analysen.nichtGefunden} ohne passende Kundennummer.`;
         if(b.fehlend && b.fehlend.length) txt += ` Nicht gefunden im Ordner: ${b.fehlend.join(', ')}.`;
         resultEl.innerHTML = `<div class="verw-result ok">${escapeHtml(txt)}</div>`;
         ladeSyncStatus();
@@ -2308,6 +2292,24 @@ async function openVerwaltung(){
       }
     } catch(err) {
       resultEl.innerHTML = '<div class="verw-result err">Sync fehlgeschlagen.</div>';
+    }
+  });
+
+  // Stammdaten sofort aktualisieren
+  document.getElementById('stamm-btn').addEventListener('click', async () => {
+    const resultEl = document.getElementById('stamm-result');
+    resultEl.innerHTML = '<div class="verw-result ok">Stammdaten werden von Google Drive geholt…</div>';
+    try {
+      const r = await fetch('/api/sync/stammdaten', { method: 'POST' });
+      const d = await r.json();
+      if(d.ok){
+        resultEl.innerHTML = '<div class="verw-result ok">✓ Stammdaten und Planung aktualisiert.</div>';
+        ladeSyncStatus();
+      } else {
+        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error || 'Fehler')}</div>`;
+      }
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Aktualisierung fehlgeschlagen.</div>';
     }
   });
 

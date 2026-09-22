@@ -89,7 +89,7 @@ function authClient() {
   });
 }
 
-async function ladeDateien() {
+async function ladeDateien(gesuchteNamen) {
   const drive = google.drive({ version: 'v3', auth: authClient() });
   const liste = await drive.files.list({
     q: `'${ORDNER_ID}' in parents and trashed = false`,
@@ -101,8 +101,7 @@ async function ladeDateien() {
 
   const gefunden = {};
   for (const datei of liste.data.files || []) {
-    const gesucht = [DATEIEN.stammdaten, ...DATEIEN.analyse];
-    if (!gesucht.includes(datei.name)) continue;
+    if (!gesuchteNamen.includes(datei.name)) continue;
     const antwort = await drive.files.get(
       { fileId: datei.id, alt: 'media', supportsAllDrives: true },
       { responseType: 'arraybuffer' }
@@ -377,33 +376,44 @@ function uebernehmeAnalysen(kunden, rows) {
 }
 
 // ---------- Hauptfunktion ----------
-async function syncVonDrive(kunden) {
-  const dateien = await ladeDateien();
-  const bericht = { dateien: [], stammdaten: null, planung: null, analysen: null, fehlend: [] };
+// Analysedaten archivieren: quelle = 'alle' | 'kathrin' | 'ralph' | 'daniel'
+async function archiviereAnalysen(kunden, quelle = 'alle') {
+  const q = String(quelle || 'alle').toLowerCase();
+  const analyseDateien = {
+    kathrin: 'Analyse_Kathrin.xlsx',
+    ralph: 'Analyse_Ralph.xlsx',
+    daniel: 'Analyse_Daniel.xlsx',
+  };
+  const gesucht = analyseDateien[q] ? [analyseDateien[q]] : [...DATEIEN.analyse];
 
-  const gesucht = [DATEIEN.stammdaten, ...DATEIEN.analyse];
+  const dateien = await ladeDateien(gesucht);
+  const bericht = { quelle: q, dateien: [], analysen: { neu: 0, aktualisiert: 0, nichtGefunden: 0 }, fehlend: [] };
   gesucht.forEach(n => { if (!dateien[n]) bericht.fehlend.push(n); });
 
-  const stamm = dateien[DATEIEN.stammdaten];
-  if (stamm) {
-    bericht.dateien.push({ name: DATEIEN.stammdaten, geaendert: stamm.geaendert });
-    bericht.stammdaten = uebernehmeStammdaten(kunden, zeilen(stamm.workbook, 'Stammdaten'));
-    bericht.planung = uebernehmePlanung(kunden, zeilen(stamm.workbook, 'Serviceplanung'));
-  }
-
-  const summe = { neu: 0, aktualisiert: 0, nichtGefunden: 0 };
-  DATEIEN.analyse.forEach(name => {
-    const d = dateien[name];
-    if (!d) return;
-    bericht.dateien.push({ name, geaendert: d.geaendert });
-    const r = uebernehmeAnalysen(kunden, zeilen(d.workbook, 'Analyse'));
-    summe.neu += r.neu;
-    summe.aktualisiert += r.aktualisiert;
-    summe.nichtGefunden += r.nichtGefunden;
+  gesucht.forEach(name => {
+    const datei = dateien[name];
+    if (!datei) return;
+    bericht.dateien.push({ name, geaendert: datei.geaendert });
+    const r = uebernehmeAnalysen(kunden, zeilen(datei.workbook, 'Analyse'));
+    bericht.analysen.neu += r.neu;
+    bericht.analysen.aktualisiert += r.aktualisiert;
+    bericht.analysen.nichtGefunden += r.nichtGefunden;
   });
-  bericht.analysen = summe;
 
   return bericht;
 }
 
-module.exports = { syncVonDrive, ORDNER_ID, zeilen, uebernehmeStammdaten, uebernehmePlanung, uebernehmeAnalysen };
+// Stammdaten und Serviceplanung frisch aus dem Drive übernehmen.
+// Läuft im Hintergrund, weil sich diese Daten laufend ändern.
+async function holeStammdaten(kunden) {
+  const dateien = await ladeDateien([DATEIEN.stammdaten]);
+  const datei = dateien[DATEIEN.stammdaten];
+  if (!datei) throw new Error(`${DATEIEN.stammdaten} wurde im Drive-Ordner nicht gefunden.`);
+  return {
+    geaendert: datei.geaendert,
+    stammdaten: uebernehmeStammdaten(kunden, zeilen(datei.workbook, 'Stammdaten')),
+    planung: uebernehmePlanung(kunden, zeilen(datei.workbook, 'Serviceplanung')),
+  };
+}
+
+module.exports = { archiviereAnalysen, holeStammdaten, ORDNER_ID, zeilen, uebernehmeStammdaten, uebernehmePlanung, uebernehmeAnalysen };

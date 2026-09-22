@@ -5,7 +5,7 @@ const path = require('path');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const ExcelJS = require('exceljs');
-const { syncVonDrive, ORDNER_ID } = require('./drive-sync');
+const { archiviereAnalysen, holeStammdaten, ORDNER_ID } = require('./drive-sync');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 
@@ -1186,8 +1186,13 @@ app.post('/api/sicherung/einspielen', requireAuth, upload.single('datei'), (req,
   }
 });
 
-// ---- Google-Drive-Sync ----
-let syncLaeuft = false;
+// ---- Google Drive ----
+// Zwei getrennte Vorgänge:
+//  1. Analysedaten archivieren – fest in den Datenbestand schreiben (Knopf +
+//     automatisch sonntags). Bestehende Einträge bleiben erhalten.
+//  2. Stammdaten und Serviceplanung – ändern sich laufend und werden im
+//     Hintergrund stündlich frisch aus dem Drive geholt.
+let driveLaeuft = false;
 const SYNC_STATE = path.join(DATA_DIR, 'sync-state.json');
 
 function ladeSyncState() {
@@ -1198,30 +1203,35 @@ function speichereSyncState(state) {
   try { fs.writeFileSync(SYNC_STATE, JSON.stringify(state, null, 2), 'utf-8'); } catch (e) {}
 }
 
+function speichereKunden() {
+  fs.writeFileSync(KUNDEN_PFAD, JSON.stringify(kunden, null, 2), 'utf-8');
+}
+
 app.get('/api/sync/status', requireAuth, (req, res) => {
   const state = ladeSyncState();
   res.json({
     konfiguriert: !!process.env.GOOGLE_SERVICE_ACCOUNT,
     ordnerId: ORDNER_ID,
-    laeuft: syncLaeuft,
-    letzterSync: state.letzterSync || null,
+    laeuft: driveLaeuft,
+    letzteArchivierung: state.letzteArchivierung || null,
     letzterBericht: state.letzterBericht || null,
+    letzteStammdaten: state.letzteStammdaten || null,
     letzterFehler: state.letzterFehler || null,
   });
 });
 
-async function fuehreSyncAus() {
-  if (syncLaeuft) throw new Error('Es läuft bereits ein Sync.');
-  syncLaeuft = true;
+async function fuehreArchivierungAus(quelle) {
+  if (driveLaeuft) throw new Error('Es läuft bereits ein Abgleich mit Google Drive.');
+  driveLaeuft = true;
   try {
-    const bericht = await syncVonDrive(kunden);
-    fs.writeFileSync(KUNDEN_PFAD, JSON.stringify(kunden, null, 2), 'utf-8');
-    speichereSyncState({
-      letzterSync: new Date().toISOString(),
-      letzterBericht: bericht,
-      letzterFehler: null,
-    });
-    console.log('Drive-Sync abgeschlossen:', JSON.stringify(bericht.analysen));
+    const bericht = await archiviereAnalysen(kunden, quelle);
+    speichereKunden();
+    const state = ladeSyncState();
+    state.letzteArchivierung = new Date().toISOString();
+    state.letzterBericht = bericht;
+    state.letzterFehler = null;
+    speichereSyncState(state);
+    console.log('Analysedaten archiviert:', JSON.stringify(bericht.analysen));
     return bericht;
   } catch (err) {
     const state = ladeSyncState();
@@ -1229,28 +1239,64 @@ async function fuehreSyncAus() {
     speichereSyncState(state);
     throw err;
   } finally {
-    syncLaeuft = false;
+    driveLaeuft = false;
   }
 }
 
 app.post('/api/sync/jetzt', requireAuth, async (req, res) => {
   try {
-    const bericht = await fuehreSyncAus();
+    const bericht = await fuehreArchivierungAus(req.query.quelle || 'alle');
     res.json({ ok: true, bericht });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Automatischer Sync: jeden Sonntag um 22:00 Uhr, Prüfung stündlich
-setInterval(() => {
-  const jetzt = new Date();
-  if (jetzt.getDay() !== 0 || jetzt.getHours() !== 22) return;
+async function aktualisiereStammdaten() {
+  if (driveLaeuft) return;
+  driveLaeuft = true;
+  try {
+    const bericht = await holeStammdaten(kunden);
+    speichereKunden();
+    const state = ladeSyncState();
+    state.letzteStammdaten = new Date().toISOString();
+    state.letzterFehler = null;
+    speichereSyncState(state);
+    console.log('Stammdaten aktualisiert:', JSON.stringify(bericht.stammdaten), JSON.stringify(bericht.planung));
+  } catch (err) {
+    console.error('Stammdaten-Abgleich fehlgeschlagen:', err.message);
+    const state = ladeSyncState();
+    state.letzterFehler = { zeit: new Date().toISOString(), text: err.message };
+    speichereSyncState(state);
+  } finally {
+    driveLaeuft = false;
+  }
+}
+
+app.post('/api/sync/stammdaten', requireAuth, async (req, res) => {
+  if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
+    return res.status(400).json({ error: 'GOOGLE_SERVICE_ACCOUNT ist nicht gesetzt.' });
+  }
+  await aktualisiereStammdaten();
   const state = ladeSyncState();
-  if (state.letzterSync && (Date.now() - new Date(state.letzterSync).getTime()) < 6 * 3600 * 1000) return;
-  if (!process.env.GOOGLE_SERVICE_ACCOUNT) return;
-  fuehreSyncAus().catch(err => console.error('Automatischer Drive-Sync fehlgeschlagen:', err.message));
-}, 30 * 60 * 1000);
+  if (state.letzterFehler) return res.status(500).json({ error: state.letzterFehler.text });
+  res.json({ ok: true, letzteStammdaten: state.letzteStammdaten });
+});
+
+if (process.env.GOOGLE_SERVICE_ACCOUNT) {
+  // Stammdaten kurz nach dem Start und danach stündlich frisch holen
+  setTimeout(aktualisiereStammdaten, 20 * 1000);
+  setInterval(aktualisiereStammdaten, 60 * 60 * 1000);
+
+  // Analysedaten automatisch jeden Sonntag um 22 Uhr archivieren
+  setInterval(() => {
+    const jetzt = new Date();
+    if (jetzt.getDay() !== 0 || jetzt.getHours() !== 22) return;
+    const state = ladeSyncState();
+    if (state.letzteArchivierung && (Date.now() - new Date(state.letzteArchivierung).getTime()) < 6 * 3600 * 1000) return;
+    fuehreArchivierungAus('alle').catch(err => console.error('Automatische Archivierung fehlgeschlagen:', err.message));
+  }, 30 * 60 * 1000);
+}
 
 // ---- Datenkorrektur ----
 // Servicetag korrigieren: Termine und Analysedaten von einem Datum auf ein
