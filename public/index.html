@@ -2000,11 +2000,30 @@ $('#avisierung-overlay').addEventListener('click', (e) => {
 });
 
 // ---- Verwaltung ----
-function openVerwaltung(){
+async function openVerwaltung(){
   const overlay = $('#verwaltung-overlay');
   $('#verwaltung-title').textContent = 'Verwaltung';
   const heute = new Date();
   const jahr = heute.getFullYear();
+
+  // Vorschlagswerte + letzter Download laden
+  let meta = { letzterDownload: null, vonVorschlag: `${jahr}-01-01`, bisVorschlag: `${jahr}-12-31` };
+  try {
+    const r = await fetch('/api/verrechnung/meta');
+    if(r.ok) meta = await r.json();
+  } catch(e) {}
+
+  function letzterDownloadText(m){
+    if(!m.letzterDownload) return 'Die Verrechnungs-Excel wurde bisher noch nie heruntergeladen.';
+    const d = new Date(m.letzterDownload);
+    const datum = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    const zeit = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    let txt = `Letzter Download: <strong>${datum}, ${zeit} Uhr</strong>`;
+    if(m.letzterBereich && m.letzterBereich.von && m.letzterBereich.bis){
+      txt += ` (Zeitraum ${m.letzterBereich.von} – ${m.letzterBereich.bis})`;
+    }
+    return txt;
+  }
 
   $('#verwaltung-body').innerHTML = `
     <div class="verw-section">
@@ -2017,13 +2036,14 @@ function openVerwaltung(){
       <div id="upload-result"></div>
     </div>
     <div class="verw-section">
-      <h4>Ersatzteile / Verrechnung herunterladen</h4>
-      <p>Alle Services mit Ersatzteilen im gewählten Zeitraum als Excel herunterladen.</p>
+      <h4>Verrechnung herunterladen</h4>
+      <p>Alle Services im gewählten Zeitraum, die verrechnet werden müssen: Kunden mit 1 Service pro Jahr (mit Wartungsgebühr) sowie alle Kunden mit notierten Ersatzteilen. Kunden mit 2 Services ohne Ersatzteile werden weggelassen.</p>
+      <div id="verr-letzter" style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">${letzterDownloadText(meta)}</div>
       <div class="verw-datum-row">
         <label>Von:</label>
-        <input type="date" id="verr-von" value="${jahr}-01-01" />
+        <input type="date" id="verr-von" value="${meta.vonVorschlag}" />
         <label>Bis:</label>
-        <input type="date" id="verr-bis" value="${jahr}-12-31" />
+        <input type="date" id="verr-bis" value="${meta.bisVorschlag}" />
         <button type="button" class="strecke-btn" id="verr-btn">Herunterladen</button>
       </div>
       <div id="verr-result"></div>
@@ -2043,12 +2063,12 @@ function openVerwaltung(){
     const fd = new FormData();
     fd.append('datei', file);
     try {
-      const r = await fetch('/api/upload/analysedaten', { method:'POST', body: fd });
+      const r = await fetch('/api/import/analysedaten', { method:'POST', body: fd });
       const d = await r.json();
       if(d.ok){
         resultEl.innerHTML = `<div class="verw-result ok">
           ✓ <strong>${escapeHtml(file.name)}</strong> erfolgreich archiviert.<br>
-          ${d.gesamt} Einträge verarbeitet, ${d.zugeordnet} zugeordnet, ${d.aktualisiert} aktualisiert, ${d.nichtGefunden} Kunden nicht gefunden.
+          ${d.zugeordnet} Einträge zugeordnet, ${d.korrigiert} Termine korrigiert, ${d.neuTermine} neue Termine, ${d.nichtGefunden} Kunden nicht gefunden.
         </div>`;
       } else {
         resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error)}</div>`;
@@ -2060,14 +2080,41 @@ function openVerwaltung(){
   });
 
   // Verrechnungs-Download
-  document.getElementById('verr-btn').addEventListener('click', () => {
+  document.getElementById('verr-btn').addEventListener('click', async () => {
     const von = document.getElementById('verr-von').value;
     const bis = document.getElementById('verr-bis').value;
-    if(!von || !bis) return;
-    // DD.MM.YYYY Format für API
+    const resultEl = document.getElementById('verr-result');
+    if(!von || !bis){
+      resultEl.innerHTML = '<div class="verw-result err">Bitte Von- und Bis-Datum wählen.</div>';
+      return;
+    }
     const vonF = von.split('-').reverse().join('.');
     const bisF = bis.split('-').reverse().join('.');
-    window.open(`/api/verrechnung?von=${encodeURIComponent(vonF)}&bis=${encodeURIComponent(bisF)}&format=xlsx`, '_blank');
+    resultEl.innerHTML = '<div class="verw-result ok">Excel wird erstellt…</div>';
+    try {
+      const r = await fetch(`/api/verrechnung?von=${encodeURIComponent(vonF)}&bis=${encodeURIComponent(bisF)}&format=xlsx`);
+      if(!r.ok) throw new Error('Fehler');
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WKS_Verrechnung_${vonF.replace(/\./g,'')}_${bisF.replace(/\./g,'')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      resultEl.innerHTML = '<div class="verw-result ok">✓ Verrechnungs-Excel heruntergeladen.</div>';
+      // Anzeige "letzter Download" aktualisieren
+      try {
+        const rm = await fetch('/api/verrechnung/meta');
+        if(rm.ok){
+          const m = await rm.json();
+          document.getElementById('verr-letzter').innerHTML = letzterDownloadText(m);
+        }
+      } catch(e) {}
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Download fehlgeschlagen.</div>';
+    }
   });
 }
 

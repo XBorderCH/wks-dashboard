@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -1080,97 +1081,232 @@ function parseAnalyseUpload(filePath) {
   return eintraege;
 }
 
-app.post('/api/upload/analysedaten', requireAuth, upload.single('datei'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+// ---- Verrechnung (Excel-Export für den Rechnungslauf) ----
+// Regeln:
+//  - Kunden mit 1 Service/Jahr: immer aufführen, mit aktueller Wartungsgebühr
+//    (+ Ersatzteile, falls im Analyseblatt notiert)
+//  - Kunden mit 2+ Services/Jahr: nur aufführen, wenn Ersatzteile notiert sind
+//    (Wartungsgebühr wurde anfangs Jahr bereits fakturiert)
+const VERRECHNUNG_STATE = path.join(__dirname, 'data', 'verrechnung-state.json');
 
+function ladeVerrechnungState() {
   try {
-    const eintraege = parseAnalyseUpload(req.file.path);
-
-    let zugeordnet = 0, nichtGefunden = 0, aktualisiert = 0;
-    const kundenByKdnr = {};
-    kunden.forEach(k => { if (k.kdnr) kundenByKdnr[k.kdnr] = k; });
-
-    eintraege.forEach(e => {
-      const kunde = kundenByKdnr[e.kdnr];
-      if (!kunde) { nichtGefunden++; return; }
-
-      if (!kunde.analysedaten) kunde.analysedaten = [];
-      const bestehend = kunde.analysedaten.findIndex(a => a.datum === e.datum);
-      const eintrag = { datum: e.datum, geruch: e.geruch, farbe: e.farbe, schlammAblauf: e.schlammAblauf,
-        handlungsbedarf: e.handlungsbedarf, messwerteImmer: e.messwerteImmer,
-        messwerteOptional: e.messwerteOptional, bemerkungen: e.bemerkungen };
-
-      if (bestehend >= 0) { kunde.analysedaten[bestehend] = eintrag; aktualisiert++; }
-      else { kunde.analysedaten.push(eintrag); }
-      kunde.analysedaten.sort((a,b) => a.datum.split('.').reverse().join('').localeCompare(b.datum.split('.').reverse().join('')));
-      zugeordnet++;
-    });
-
-    // Speichern
-    const p = path.join(__dirname, 'data', 'kunden.json');
-    fs.writeFileSync(p, JSON.stringify(kunden, null, 2), 'utf-8');
-
-    // Cleanup
-    try { fs.unlinkSync(req.file.path); } catch(e) {}
-
-    res.json({ ok: true, gesamt: eintraege.length, zugeordnet, aktualisiert, nichtGefunden });
-  } catch (err) {
-    try { fs.unlinkSync(req.file.path); } catch(e) {}
-    res.status(500).json({ error: err.message });
+    return JSON.parse(fs.readFileSync(VERRECHNUNG_STATE, 'utf-8'));
+  } catch (e) {
+    return { letzterDownload: null, letzterBereich: null };
   }
-});
+}
 
-// ---- Verrechnung (Download mit Datumsfilter) ----
-app.get('/api/verrechnung', requireAuth, (req, res) => {
-  const von = req.query.von || '01.01.2000';
-  const bis = req.query.bis || '31.12.2099';
-
-  function parseDat(v) {
-    const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (!m) return null;
-    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+function speichereVerrechnungState(state) {
+  try {
+    fs.writeFileSync(VERRECHNUNG_STATE, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Verrechnungs-State konnte nicht gespeichert werden:', e.message);
   }
-  const vonD = parseDat(von); const bisD = parseDat(bis);
+}
 
+function parseDatDE(v) {
+  const m = String(v || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+function sortKeyDatum(d) {
+  const m = String(d || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return '00000000';
+  return m[3] + m[2].padStart(2, '0') + m[1].padStart(2, '0');
+}
+
+// Zeit normalisieren: '0715' / '7:15' / Excel-Bruchteil 0.302083 -> '07:15'
+function normZeit(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  if (/^\d+([.,]\d+)?$/.test(s) && s.includes('.') && Number(s) < 1) {
+    const min = Math.round(Number(s) * 24 * 60);
+    return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  }
+  const m1 = s.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (m1) return `${m1[1].padStart(2, '0')}:${m1[2]}`;
+  const m2 = s.match(/^(\d{3,4})$/);
+  if (m2) {
+    const t = m2[1].padStart(4, '0');
+    return `${t.slice(0, 2)}:${t.slice(2)}`;
+  }
+  return s;
+}
+
+// Uhrzeit zu einem Servicedatum suchen: zuerst Termine, dann Planung
+function zeitZuDatum(kunde, datum) {
+  const t = (kunde.termine || []).find(x => x.datum === datum);
+  if (t && t.zeit) return normZeit(t.zeit);
+  const p = kunde.planung || {};
+  if (p.datS === datum && p.zeitS) return normZeit(p.zeitS);
+  if (p.dat226 === datum && p.zeit226) return normZeit(p.zeit226);
+  return '';
+}
+
+// Anzahl Services pro Jahr aus den Stammdaten ('1', '1A', '1A-H', '2', '2A', ...)
+function anzahlService(kunde) {
+  const roh = String((kunde.anlage && kunde.anlage.anzahlService) || '').trim();
+  const m = roh.match(/^(\d)/);
+  return m ? Number(m[1]) : null;
+}
+
+function ersatzteileVon(analyse) {
+  let text = '';
+  (analyse.bemerkungen || []).forEach(b => {
+    if (b.label === 'Ersatzteile' && b.wert) text = String(b.wert).trim();
+  });
+  return text;
+}
+
+function baueVerrechnungsZeilen(von, bis) {
+  const vonD = parseDatDE(von);
+  const bisD = parseDatDE(bis);
   const zeilen = [];
+
   kunden.forEach(k => {
     if (!k.kdnr) return;
-    const p = k.planung || {};
-    (k.analysedaten || []).forEach(ad => {
-      // Ersatzteile aus Bemerkungen
-      let ersatzteile = '';
-      (ad.bemerkungen || []).forEach(b => { if (b.label === 'Ersatzteile') ersatzteile = b.wert || ''; });
-      if (!ersatzteile) return;
+    const anz = anzahlService(k);
+    const einService = anz === 1;
 
-      const d = parseDat(ad.datum);
+    (k.analysedaten || []).forEach(ad => {
+      const d = parseDatDE(ad.datum);
       if (!d) return;
       if (vonD && d < vonD) return;
       if (bisD && d > bisD) return;
 
+      const ersatzteile = ersatzteileVon(ad);
+      // 2+ Services: nur bei Ersatzteilen aufführen
+      if (!einService && !ersatzteile) return;
+
       zeilen.push({
-        kdnr: k.kdnr, name: k.kdnrName || '', datum: ad.datum,
-        fahrer: p.fahrer || '', ersatzteile, kanton: p.zustKt || '',
+        datum: ad.datum,
+        zeit: zeitZuDatum(k, ad.datum),
+        kunde: k.kdnrName || String(k.kdnr),
+        gebuehr: einService ? (k.aktuelleGebuehr || null) : null,
+        ersatzteile,
+        anzahlService: anz,
       });
     });
   });
 
-  zeilen.sort((a,b) => a.datum.split('.').reverse().join('').localeCompare(b.datum.split('.').reverse().join('')));
+  zeilen.sort((a, b) => {
+    const t = sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum));
+    if (t !== 0) return t;
+    return (a.zeit || '99:99').localeCompare(b.zeit || '99:99');
+  });
 
-  if (req.query.format === 'xlsx') {
-    // Excel-Download
-    const wb = XLSX.utils.book_new();
-    const data = [['KdNr','Kunde','Datum','Fahrer','Kanton','Ersatzteile']];
-    zeilen.forEach(z => data.push([z.kdnr, z.name, z.datum, z.fahrer, z.kanton, z.ersatzteile]));
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    ws['!cols'] = [{wch:8},{wch:32},{wch:12},{wch:10},{wch:6},{wch:45}];
-    XLSX.utils.book_append_sheet(wb, ws, 'Ersatzteile');
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Disposition', `attachment; filename=WKS_Ersatzteile_${von.replace(/\./g,'')}_${bis.replace(/\./g,'')}.xlsx`);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    return res.send(buf);
+  return zeilen;
+}
+
+// Letzter Download + Vorschlagswerte für den Datumsfilter
+app.get('/api/verrechnung/meta', requireAuth, (req, res) => {
+  const state = ladeVerrechnungState();
+  const heute = new Date();
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let vonVorschlag;
+  if (state.letzterDownload) {
+    vonVorschlag = state.letzterDownload.slice(0, 10);
+  } else {
+    vonVorschlag = `${heute.getFullYear()}-01-01`;
+  }
+  res.json({
+    letzterDownload: state.letzterDownload,
+    letzterBereich: state.letzterBereich,
+    vonVorschlag,
+    bisVorschlag: iso(heute),
+  });
+});
+
+app.get('/api/verrechnung', requireAuth, async (req, res) => {
+  const von = req.query.von || '01.01.2000';
+  const bis = req.query.bis || '31.12.2099';
+  const zeilen = baueVerrechnungsZeilen(von, bis);
+
+  if (req.query.format !== 'xlsx') {
+    return res.json({ zeilen, total: zeilen.length });
   }
 
-  res.json({ zeilen, total: zeilen.length });
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Verrechnung');
+  ws.columns = [
+    { header: 'Datum', key: 'datum', width: 12 },
+    { header: 'Zeit', key: 'zeit', width: 8 },
+    { header: 'Kunde', key: 'kunde', width: 40 },
+    { header: 'Servicegebühr', key: 'gebuehr', width: 14 },
+    { header: 'Ersatzteile', key: 'ersatzteile', width: 55 },
+  ];
+
+  const kopf = ws.getRow(1);
+  kopf.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  kopf.alignment = { vertical: 'middle' };
+  kopf.height = 20;
+  kopf.eachCell(c => {
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
+  });
+
+  let aktuellesDatum = null;
+  let summeGebuehren = 0;
+  let anzahlErsatzteile = 0;
+
+  zeilen.forEach(z => {
+    if (aktuellesDatum !== null && z.datum !== aktuellesDatum) ws.addRow([]);
+    aktuellesDatum = z.datum;
+
+    const gebuehrZahl = z.gebuehr !== null && z.gebuehr !== undefined && String(z.gebuehr).trim() !== ''
+      ? Number(String(z.gebuehr).replace(/[^\d.,-]/g, '').replace(',', '.'))
+      : null;
+    if (gebuehrZahl && !isNaN(gebuehrZahl)) summeGebuehren += gebuehrZahl;
+
+    const row = ws.addRow({
+      datum: z.datum,
+      zeit: z.zeit,
+      kunde: z.kunde,
+      gebuehr: gebuehrZahl !== null && !isNaN(gebuehrZahl) ? gebuehrZahl : '',
+      ersatzteile: z.ersatzteile || '',
+    });
+    row.getCell('gebuehr').numFmt = '#,##0.00';
+    row.getCell('ersatzteile').alignment = { wrapText: true, vertical: 'top' };
+    row.alignment = row.alignment || {};
+
+    if (z.ersatzteile) {
+      anzahlErsatzteile++;
+      ['datum', 'zeit', 'kunde', 'gebuehr', 'ersatzteile'].forEach(key => {
+        row.getCell(key).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2B2' } };
+      });
+      const c = row.getCell('ersatzteile');
+      c.font = { bold: true };
+      c.border = {
+        top: { style: 'thin', color: { argb: 'FFD9A400' } },
+        left: { style: 'thin', color: { argb: 'FFD9A400' } },
+        bottom: { style: 'thin', color: { argb: 'FFD9A400' } },
+        right: { style: 'thin', color: { argb: 'FFD9A400' } },
+      };
+    }
+  });
+
+  ws.addRow([]);
+  const total = ws.addRow({ kunde: 'Total Servicegebühren', gebuehr: summeGebuehren });
+  total.font = { bold: true };
+  total.getCell('gebuehr').numFmt = '#,##0.00';
+  total.getCell('ersatzteile').value = `${anzahlErsatzteile} Positionen mit Ersatzteilen`;
+
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const buf = await wb.xlsx.writeBuffer();
+
+  // Download-Zeitpunkt merken (Basis für den nächsten Vorschlag "Von")
+  const jetzt = new Date();
+  speichereVerrechnungState({
+    letzterDownload: jetzt.toISOString(),
+    letzterBereich: { von, bis },
+  });
+
+  res.setHeader('Content-Disposition', `attachment; filename=WKS_Verrechnung_${von.replace(/\./g, '')}_${bis.replace(/\./g, '')}.xlsx`);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  return res.send(Buffer.from(buf));
 });
 
 // ---- Daten-Import (Analysedaten-Upload + Archivierung) ----

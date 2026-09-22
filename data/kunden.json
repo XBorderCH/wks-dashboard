@@ -51044,26 +51044,10 @@
     },
     "termine": [
       {
-        "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "21.08.2026",
-        "zeit": "0715",
-        "notizen": [
-          {
-            "label": "Nächster Service",
-            "text": "nur von Juli bis Sept. Zufahrt möglich!"
-          },
-          {
-            "label": "Letzter Service",
-            "text": "nur von Juli bis Sept. Zufahrt möglich!"
-          }
-        ]
-      },
-      {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0.3020833333333333",
+        "zeit": "0715",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -51270,7 +51254,7 @@
     },
     "analysedaten": [
       {
-        "datum": "21.08.2026",
+        "datum": "02.09.2026",
         "geruch": "leicht faulig",
         "farbe": "trüb / bräunlich",
         "schlammAblauf": "kein",
@@ -51452,16 +51436,10 @@
     },
     "termine": [
       {
-        "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "21.08.2026",
-        "zeit": "0822"
-      },
-      {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0.3486111111111111"
+        "zeit": "0822"
       }
     ],
     "gebuehren": [
@@ -51658,7 +51636,7 @@
     },
     "analysedaten": [
       {
-        "datum": "21.08.2026",
+        "datum": "02.09.2026",
         "geruch": null,
         "farbe": null,
         "schlammAblauf": null,
@@ -51846,16 +51824,10 @@
         "datum": "22.05.2025"
       },
       {
-        "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "21.08.2026",
-        "zeit": "0918"
-      },
-      {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0.38749999999999996"
+        "zeit": "0918"
       }
     ],
     "gebuehren": [
@@ -52057,75 +52029,6 @@
     },
     "analysedaten": [
       {
-        "datum": "21.08.2026",
-        "geruch": "kein",
-        "farbe": "klar",
-        "schlammAblauf": "kein",
-        "handlungsbedarf": "Nein",
-        "messwerteImmer": [
-          {
-            "label": "pH",
-            "wert": "7.9"
-          },
-          {
-            "label": "O2 A",
-            "wert": "22.3"
-          },
-          {
-            "label": "Temp A",
-            "wert": "6.4"
-          },
-          {
-            "label": "DS",
-            "wert": ">60"
-          },
-          {
-            "label": "Amm.",
-            "wert": "<1"
-          },
-          {
-            "label": "CSB",
-            "wert": "<15"
-          }
-        ],
-        "messwerteOptional": [
-          {
-            "label": "Bewuchs",
-            "wert": "-"
-          },
-          {
-            "label": "Schlammfarbe",
-            "wert": "braun"
-          },
-          {
-            "label": "O2 BB",
-            "wert": "-"
-          },
-          {
-            "label": "Temp",
-            "wert": "-"
-          },
-          {
-            "label": "Ab.Vol.",
-            "wert": "20"
-          },
-          {
-            "label": "Stunden",
-            "wert": "8995"
-          },
-          {
-            "label": "Nitrit",
-            "wert": "-"
-          }
-        ],
-        "bemerkungen": [
-          {
-            "label": "Vermerk WKS",
-            "wert": "Steuerung: Clarocontrol M"
-          }
-        ]
-      },
-      {
         "datum": "22.05.2025",
         "geruch": "kein",
         "farbe": "klar / bräunlich",
@@ -52203,6 +52106,75 @@
           {
             "label": "Nächster Service",
             "wert": "easyone (hier mit Vorklärung)"
+          }
+        ]
+      },
+      {
+        "datum": "02.09.2026",
+        "geruch": "kein",
+        "farbe": "klar",
+        "schlammAblauf": "kein",
+        "handlungsbedarf": "Nein",
+        "messwerteImmer": [
+          {
+            "label": "pH",
+            "wert": "7.9"
+          },
+          {
+            "label": "O2 A",
+            "wert": "22.3"
+          },
+          {
+            "label": "Temp A",
+            "wert": "6.4"
+          },
+          {
+            "label": "DS",
+            "wert": ">60"
+          },
+          {
+            "label": "Amm.",
+            "wert": "<1"
+          },
+          {
+            "label": "CSB",
+            "wert": "<15"
+          }
+        ],
+        "messwerteOptional": [
+          {
+            "label": "Bewuchs",
+            "wert": "-"
+          },
+          {
+            "label": "Schlammfarbe",
+            "wert": "braun"
+          },
+          {
+            "label": "O2 BB",
+            "wert": "-"
+          },
+          {
+            "label": "Temp",
+            "wert": "-"
+          },
+          {
+            "label": "Ab.Vol.",
+            "wert": "20"
+          },
+          {
+            "label": "Stunden",
+            "wert": "8995"
+          },
+          {
+            "label": "Nitrit",
+            "wert": "-"
+          }
+        ],
+        "bemerkungen": [
+          {
+            "label": "Vermerk WKS",
+            "wert": "Steuerung: Clarocontrol M"
           }
         ]
       }
@@ -52330,16 +52302,10 @@
         "datum": "22.05.2025"
       },
       {
-        "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "21.08.2026",
-        "zeit": "1035"
-      },
-      {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0.44097222222222215"
+        "zeit": "1035"
       }
     ],
     "gebuehren": [
@@ -52541,75 +52507,6 @@
     },
     "analysedaten": [
       {
-        "datum": "21.08.2026",
-        "geruch": "kein",
-        "farbe": "trüb / gräulich",
-        "schlammAblauf": "kein",
-        "handlungsbedarf": "Nein",
-        "messwerteImmer": [
-          {
-            "label": "pH",
-            "wert": "5.1"
-          },
-          {
-            "label": "O2 A",
-            "wert": "16"
-          },
-          {
-            "label": "Temp A",
-            "wert": "7.3"
-          },
-          {
-            "label": "DS",
-            "wert": "22"
-          },
-          {
-            "label": "Amm.",
-            "wert": "<1"
-          },
-          {
-            "label": "CSB",
-            "wert": "72"
-          }
-        ],
-        "messwerteOptional": [
-          {
-            "label": "Bewuchs",
-            "wert": "-"
-          },
-          {
-            "label": "Schlammfarbe",
-            "wert": "braun"
-          },
-          {
-            "label": "O2 BB",
-            "wert": "-"
-          },
-          {
-            "label": "Temp",
-            "wert": "-"
-          },
-          {
-            "label": "Ab.Vol.",
-            "wert": "200"
-          },
-          {
-            "label": "Stunden",
-            "wert": "8667"
-          },
-          {
-            "label": "Nitrit",
-            "wert": "-"
-          }
-        ],
-        "bemerkungen": [
-          {
-            "label": "Bemerkungen",
-            "wert": "pH-Wert tief - auf säurehaltige Reiniger verzichten"
-          }
-        ]
-      },
-      {
         "datum": "22.05.2025",
         "geruch": "kein",
         "farbe": "trüb / bräunlich",
@@ -52684,6 +52581,75 @@
           }
         ],
         "bemerkungen": []
+      },
+      {
+        "datum": "02.09.2026",
+        "geruch": "kein",
+        "farbe": "trüb / gräulich",
+        "schlammAblauf": "kein",
+        "handlungsbedarf": "Nein",
+        "messwerteImmer": [
+          {
+            "label": "pH",
+            "wert": "5.1"
+          },
+          {
+            "label": "O2 A",
+            "wert": "16"
+          },
+          {
+            "label": "Temp A",
+            "wert": "7.3"
+          },
+          {
+            "label": "DS",
+            "wert": "22"
+          },
+          {
+            "label": "Amm.",
+            "wert": "<1"
+          },
+          {
+            "label": "CSB",
+            "wert": "72"
+          }
+        ],
+        "messwerteOptional": [
+          {
+            "label": "Bewuchs",
+            "wert": "-"
+          },
+          {
+            "label": "Schlammfarbe",
+            "wert": "braun"
+          },
+          {
+            "label": "O2 BB",
+            "wert": "-"
+          },
+          {
+            "label": "Temp",
+            "wert": "-"
+          },
+          {
+            "label": "Ab.Vol.",
+            "wert": "200"
+          },
+          {
+            "label": "Stunden",
+            "wert": "8667"
+          },
+          {
+            "label": "Nitrit",
+            "wert": "-"
+          }
+        ],
+        "bemerkungen": [
+          {
+            "label": "Bemerkungen",
+            "wert": "pH-Wert tief - auf säurehaltige Reiniger verzichten"
+          }
+        ]
       }
     ]
   },
@@ -52820,16 +52786,10 @@
         "datum": "22.05.2025"
       },
       {
-        "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "21.08.2026",
-        "zeit": "1304"
-      },
-      {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0.5444444444444444"
+        "zeit": "1304"
       }
     ],
     "gebuehren": [
@@ -53036,70 +52996,6 @@
     },
     "analysedaten": [
       {
-        "datum": "21.08.2026",
-        "geruch": "kein",
-        "farbe": "klar",
-        "schlammAblauf": "kein",
-        "handlungsbedarf": "Nein",
-        "messwerteImmer": [
-          {
-            "label": "pH",
-            "wert": "7.5"
-          },
-          {
-            "label": "O2 A",
-            "wert": "19.2"
-          },
-          {
-            "label": "Temp A",
-            "wert": "3.9"
-          },
-          {
-            "label": "DS",
-            "wert": ">60"
-          },
-          {
-            "label": "Amm.",
-            "wert": "4.1"
-          },
-          {
-            "label": "CSB",
-            "wert": "45"
-          }
-        ],
-        "messwerteOptional": [
-          {
-            "label": "Bewuchs",
-            "wert": "-"
-          },
-          {
-            "label": "Schlammfarbe",
-            "wert": "-"
-          },
-          {
-            "label": "O2 BB",
-            "wert": "-"
-          },
-          {
-            "label": "Temp",
-            "wert": "-"
-          },
-          {
-            "label": "Ab.Vol.",
-            "wert": "-"
-          },
-          {
-            "label": "Stunden",
-            "wert": "-"
-          },
-          {
-            "label": "Nitrit",
-            "wert": "-"
-          }
-        ],
-        "bemerkungen": []
-      },
-      {
         "datum": "22.05.2025",
         "geruch": "kein",
         "farbe": "klar / bräunlich",
@@ -53171,6 +53067,70 @@
           {
             "label": "Monteur",
             "wert": "R"
+          }
+        ],
+        "bemerkungen": []
+      },
+      {
+        "datum": "02.09.2026",
+        "geruch": "kein",
+        "farbe": "klar",
+        "schlammAblauf": "kein",
+        "handlungsbedarf": "Nein",
+        "messwerteImmer": [
+          {
+            "label": "pH",
+            "wert": "7.5"
+          },
+          {
+            "label": "O2 A",
+            "wert": "19.2"
+          },
+          {
+            "label": "Temp A",
+            "wert": "3.9"
+          },
+          {
+            "label": "DS",
+            "wert": ">60"
+          },
+          {
+            "label": "Amm.",
+            "wert": "4.1"
+          },
+          {
+            "label": "CSB",
+            "wert": "45"
+          }
+        ],
+        "messwerteOptional": [
+          {
+            "label": "Bewuchs",
+            "wert": "-"
+          },
+          {
+            "label": "Schlammfarbe",
+            "wert": "-"
+          },
+          {
+            "label": "O2 BB",
+            "wert": "-"
+          },
+          {
+            "label": "Temp",
+            "wert": "-"
+          },
+          {
+            "label": "Ab.Vol.",
+            "wert": "-"
+          },
+          {
+            "label": "Stunden",
+            "wert": "-"
+          },
+          {
+            "label": "Nitrit",
+            "wert": "-"
           }
         ],
         "bemerkungen": []
@@ -53330,16 +53290,10 @@
         "datum": "22.05.2025"
       },
       {
-        "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "21.08.2026",
-        "zeit": "1348"
-      },
-      {
         "halbjahr": "2",
         "jahr": "2026",
         "datum": "02.09.2026",
-        "zeit": "0.5749999999999998"
+        "zeit": "1348"
       }
     ],
     "gebuehren": [
@@ -53556,70 +53510,6 @@
     },
     "analysedaten": [
       {
-        "datum": "21.08.2026",
-        "geruch": "kein",
-        "farbe": "klar",
-        "schlammAblauf": "kein",
-        "handlungsbedarf": "Nein",
-        "messwerteImmer": [
-          {
-            "label": "pH",
-            "wert": "7"
-          },
-          {
-            "label": "O2 A",
-            "wert": "20.3"
-          },
-          {
-            "label": "Temp A",
-            "wert": "6.6"
-          },
-          {
-            "label": "DS",
-            "wert": ">60"
-          },
-          {
-            "label": "Amm.",
-            "wert": "<1"
-          },
-          {
-            "label": "CSB",
-            "wert": "<15"
-          }
-        ],
-        "messwerteOptional": [
-          {
-            "label": "Bewuchs",
-            "wert": "-"
-          },
-          {
-            "label": "Schlammfarbe",
-            "wert": "-"
-          },
-          {
-            "label": "O2 BB",
-            "wert": "-"
-          },
-          {
-            "label": "Temp",
-            "wert": "-"
-          },
-          {
-            "label": "Ab.Vol.",
-            "wert": "-"
-          },
-          {
-            "label": "Stunden",
-            "wert": "-"
-          },
-          {
-            "label": "Nitrit",
-            "wert": "-"
-          }
-        ],
-        "bemerkungen": []
-      },
-      {
         "datum": "22.05.2025",
         "geruch": "kein",
         "farbe": "klar / gelblich",
@@ -53691,6 +53581,70 @@
           {
             "label": "Monteur",
             "wert": "R"
+          }
+        ],
+        "bemerkungen": []
+      },
+      {
+        "datum": "02.09.2026",
+        "geruch": "kein",
+        "farbe": "klar",
+        "schlammAblauf": "kein",
+        "handlungsbedarf": "Nein",
+        "messwerteImmer": [
+          {
+            "label": "pH",
+            "wert": "7"
+          },
+          {
+            "label": "O2 A",
+            "wert": "20.3"
+          },
+          {
+            "label": "Temp A",
+            "wert": "6.6"
+          },
+          {
+            "label": "DS",
+            "wert": ">60"
+          },
+          {
+            "label": "Amm.",
+            "wert": "<1"
+          },
+          {
+            "label": "CSB",
+            "wert": "<15"
+          }
+        ],
+        "messwerteOptional": [
+          {
+            "label": "Bewuchs",
+            "wert": "-"
+          },
+          {
+            "label": "Schlammfarbe",
+            "wert": "-"
+          },
+          {
+            "label": "O2 BB",
+            "wert": "-"
+          },
+          {
+            "label": "Temp",
+            "wert": "-"
+          },
+          {
+            "label": "Ab.Vol.",
+            "wert": "-"
+          },
+          {
+            "label": "Stunden",
+            "wert": "-"
+          },
+          {
+            "label": "Nitrit",
+            "wert": "-"
           }
         ],
         "bemerkungen": []
@@ -413709,7 +413663,8 @@
       "__EMPTY": "",
       "Region Ost/West": "West",
       "Ralph Werbung": null
-    }
+    },
+    "analysedaten": []
   },
   {
     "kdnr": "501",
@@ -413836,8 +413791,8 @@
       "tag": null,
       "datS": null,
       "zeitS": null,
-      "dat226": "24.08.2026",
-      "zeit226": "1535",
+      "dat226": null,
+      "zeit226": null,
       "datAvis": null,
       "zustKt": "OW"
     },
@@ -413863,12 +413818,6 @@
         "jahr": "2025",
         "zeit": "1424",
         "datum": "20.05.2025"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "24.08.2026",
-        "zeit": "1535"
       }
     ],
     "gebuehren": [
