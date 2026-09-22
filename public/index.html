@@ -2181,6 +2181,27 @@ async function openVerwaltung(){
       <div id="upload-result"></div>
     </div>
     <div class="verw-section">
+      <h4>Servicetag korrigieren</h4>
+      <p>Verschiebt Termine und Analysedaten von einem Datum auf ein anderes – etwa wenn eine Tour verschoben, aber mit dem alten Datum rapportiert wurde. Liegt am Zieldatum bereits ein Analyseeintrag, wird der vom Quelldatum als Duplikat entfernt.</p>
+      <div class="verw-datum-row">
+        <label>Von:</label>
+        <input type="date" id="korr-von" />
+        <label>Auf:</label>
+        <input type="date" id="korr-bis" />
+        <select id="korr-fahrer">
+          <option value="">Alle Fahrer</option>
+          <option value="Kathrin">Kathrin</option>
+          <option value="Ralph">Ralph</option>
+          <option value="Daniel">Daniel</option>
+        </select>
+        <button type="button" class="strecke-btn" id="korr-btn">Verschieben</button>
+      </div>
+      <div class="verw-datum-row" style="margin-top:8px;">
+        <button type="button" class="strecke-btn" id="korr-dedupe-btn">Doppelte Termine bereinigen</button>
+      </div>
+      <div id="korr-result"></div>
+    </div>
+    <div class="verw-section">
       <h4>Datensicherung</h4>
       <p id="sich-info">Lade Übersicht…</p>
       <div class="verw-datum-row">
@@ -2232,6 +2253,54 @@ async function openVerwaltung(){
       resultEl.innerHTML = '<div class="verw-result err">Fehler beim Hochladen.</div>';
     }
     fileInput.value = '';
+  });
+
+  // Servicetag korrigieren
+  document.getElementById('korr-btn').addEventListener('click', async () => {
+    const von = document.getElementById('korr-von').value;
+    const bis = document.getElementById('korr-bis').value;
+    const fahrer = document.getElementById('korr-fahrer').value;
+    const resultEl = document.getElementById('korr-result');
+    if(!von || !bis){
+      resultEl.innerHTML = '<div class="verw-result err">Bitte beide Daten wählen.</div>';
+      return;
+    }
+    const vonF = von.split('-').reverse().join('.');
+    const bisF = bis.split('-').reverse().join('.');
+    if(!confirm(`Alle Termine und Analysedaten vom ${vonF} auf den ${bisF} verschieben${fahrer ? ' (nur ' + fahrer + ')' : ''}?`)) return;
+    resultEl.innerHTML = '<div class="verw-result ok">Wird korrigiert…</div>';
+    try {
+      const r = await fetch('/api/korrektur/datum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ von: vonF, bis: bisF, fahrer }),
+      });
+      const d = await r.json();
+      if(d.ok){
+        resultEl.innerHTML = `<div class="verw-result ok">✓ ${d.kundenBetroffen} Kunden angepasst: ${d.verschoben} Analysedaten verschoben, ${d.duplikate} als Duplikat entfernt, ${d.termine} Termine umgebucht.</div>`;
+      } else {
+        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error || 'Fehler')}</div>`;
+      }
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Korrektur fehlgeschlagen.</div>';
+    }
+  });
+
+  document.getElementById('korr-dedupe-btn').addEventListener('click', async () => {
+    const resultEl = document.getElementById('korr-result');
+    if(!confirm('Doppelte Termine bereinigen? Pro Kunde und Datum bleibt ein Termin übrig.')) return;
+    resultEl.innerHTML = '<div class="verw-result ok">Wird bereinigt…</div>';
+    try {
+      const r = await fetch('/api/korrektur/termine-bereinigen', { method: 'POST' });
+      const d = await r.json();
+      if(d.ok){
+        resultEl.innerHTML = `<div class="verw-result ok">✓ ${d.entfernt} doppelte Termine bei ${d.kundenBetroffen} Kunden entfernt.</div>`;
+      } else {
+        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error || 'Fehler')}</div>`;
+      }
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Bereinigung fehlgeschlagen.</div>';
+    }
   });
 
   // Datensicherung

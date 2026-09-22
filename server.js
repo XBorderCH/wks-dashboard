@@ -1185,6 +1185,117 @@ app.post('/api/sicherung/einspielen', requireAuth, upload.single('datei'), (req,
   }
 });
 
+// ---- Datenkorrektur ----
+// Servicetag korrigieren: Termine und Analysedaten von einem Datum auf ein
+// anderes umbuchen, optional nur für einen Fahrer. Existiert am Zieldatum
+// bereits ein Analyseeintrag, wird der Eintrag vom Quelldatum als Duplikat
+// entfernt.
+app.post('/api/korrektur/datum', requireAuth, express.json(), (req, res) => {
+  const von = String(req.body.von || '').trim();
+  const bis = String(req.body.bis || '').trim();
+  const fahrer = String(req.body.fahrer || '').trim();
+
+  if (!parseDatDE(von) || !parseDatDE(bis)) {
+    return res.status(400).json({ error: 'Bitte beide Daten im Format TT.MM.JJJJ angeben.' });
+  }
+  if (von === bis) {
+    return res.status(400).json({ error: 'Quell- und Zieldatum sind identisch.' });
+  }
+
+  let verschoben = 0, duplikate = 0, termine = 0, kundenBetroffen = 0;
+
+  kunden.forEach(k => {
+    if (fahrer && ((k.planung && k.planung.fahrer) || '') !== fahrer) return;
+
+    const hatTermin = (k.termine || []).some(t => t.datum === von);
+    const hatAnalyse = (k.analysedaten || []).some(a => a.datum === von);
+    if (!hatTermin && !hatAnalyse) return;
+    kundenBetroffen++;
+
+    // Uhrzeit des Quelltermins retten
+    let zeit = null;
+    (k.termine || []).forEach(t => { if (t.datum === von && t.zeit) zeit = t.zeit; });
+
+    // Analysedaten umbuchen
+    let ad = k.analysedaten || [];
+    const zielVorhanden = ad.some(a => a.datum === bis);
+    if (hatAnalyse) {
+      if (zielVorhanden) {
+        ad = ad.filter(a => a.datum !== von);
+        duplikate++;
+      } else {
+        ad.forEach(a => { if (a.datum === von) a.datum = bis; });
+        verschoben++;
+      }
+    }
+    ad.sort((a, b) => sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum)));
+    k.analysedaten = ad;
+
+    // Termine umbuchen
+    const zielTermin = (k.termine || []).find(t => t.datum === bis);
+    k.termine = (k.termine || []).filter(t => t.datum !== von);
+    if (hatTermin) termine++;
+    if (zielTermin) {
+      if (zeit) zielTermin.zeit = zeit;
+    } else if (hatTermin) {
+      const m = bis.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      k.termine.push({
+        halbjahr: m && Number(m[2]) <= 6 ? '1' : '2',
+        jahr: m ? m[3] : null,
+        datum: bis,
+        zeit,
+      });
+    }
+    k.termine.sort((a, b) => sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum)));
+
+    if (k.planung) {
+      if (k.planung.datS === von) k.planung.datS = bis;
+      if (k.planung.dat226 === von) k.planung.dat226 = bis;
+    }
+  });
+
+  try {
+    fs.writeFileSync(KUNDEN_PFAD, JSON.stringify(kunden, null, 2), 'utf-8');
+  } catch (err) {
+    return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err.message });
+  }
+
+  res.json({ ok: true, kundenBetroffen, verschoben, duplikate, termine });
+});
+
+// Doppelte Termine bereinigen: pro Kunde und Datum bleibt ein Termin übrig
+app.post('/api/korrektur/termine-bereinigen', requireAuth, (req, res) => {
+  let entfernt = 0, kundenBetroffen = 0;
+
+  kunden.forEach(k => {
+    const liste = k.termine || [];
+    const best = new Map();
+    liste.forEach(t => {
+      if (!t.datum) return;
+      const vorhanden = best.get(t.datum);
+      if (!vorhanden) { best.set(t.datum, t); return; }
+      const besser = (!vorhanden.zeit && t.zeit)
+        || (!!vorhanden.zeit === !!t.zeit && String(t.halbjahr || '9') < String(vorhanden.halbjahr || '9'));
+      if (besser) best.set(t.datum, t);
+    });
+    const neu = Array.from(best.values())
+      .sort((a, b) => sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum)));
+    if (neu.length !== liste.length) {
+      entfernt += liste.length - neu.length;
+      kundenBetroffen++;
+    }
+    k.termine = neu;
+  });
+
+  try {
+    fs.writeFileSync(KUNDEN_PFAD, JSON.stringify(kunden, null, 2), 'utf-8');
+  } catch (err) {
+    return res.status(500).json({ error: 'Speichern fehlgeschlagen: ' + err.message });
+  }
+
+  res.json({ ok: true, kundenBetroffen, entfernt });
+});
+
 // ---- Planungskontrolle ----
 // Prüft, ob jeder Kunde so viele Servicetermine geplant hat wie in den
 // Stammdaten hinterlegt (Anzahl Service/Jahr).
