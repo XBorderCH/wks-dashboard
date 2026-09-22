@@ -1,1040 +1,1574 @@
-/**
- * Xentral Versand-KPI  –  mit Login
- *
- * Zwei Kennzahlen extern verfügbar:
- *   1) offeneLieferscheine     – freigegebene, nicht versendete Lieferscheine
- *                                ("Bringe Sendungen auf den Weg")
- *   2) versandbereiteAuftraege – Aufträge in der Versandübergabe
- *
- * Routen:
- *   GET  /            → Dashboard (Login nötig)
- *   GET  /login       → Loginformular
- *   POST /login       → Anmeldung
- *   POST /logout      → Abmeldung
- *   GET  /api/kpi     → JSON (Session-Cookie ODER Header x-api-key)
- *   GET  /api/debug   → Rohdaten + erkannte Statuswerte (zum Feldabgleich)
- *   GET  /healthz     → ok (immer offen, für Render Health Check)
- *
- * ENV:
- *   XENTRAL_URL      https://deinefirma.xentral.biz  (ohne Slash am Ende)
- *   XENTRAL_TOKEN    Bearer-Token
- *   LOGIN_USER       Benutzername fürs Dashboard
- *   LOGIN_PASSWORD   Passwort fürs Dashboard
- *   SESSION_SECRET   langer Zufallsstring (Cookie-Signatur)
- *   PROJEKT_ID       optional – auf ein Projekt einschränken
- *   API_KEY          optional – Maschinenzugriff auf /api/* ohne Login
- *   CACHE_TTL_MS     optional – Default 60000
- *   PORT             von Render gesetzt
- */
+const express = require('express');
+const session = require('express-session');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
+const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 
-const crypto = require("crypto");
-const express = require("express");
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const app = express();
-app.set("trust proxy", 1); // Render terminiert TLS vorgelagert
-app.use(express.urlencoded({ extended: false }));
+const PORT = process.env.PORT || 3001;
+const PASSWORD = process.env.APP_PASSWORD || 'aendern123';
+const USERNAME = process.env.APP_USERNAME || 'info@wksweber.ch';
 
-const PORT = process.env.PORT || 3000;
-const BASE = (process.env.XENTRAL_URL || "").replace(/\/+$/, "");
-const TOKEN = process.env.XENTRAL_TOKEN || "";
-const PROJEKT_ID = process.env.PROJEKT_ID || "";
-const API_KEY = process.env.API_KEY || "";
-const CACHE_TTL_MS = Number(process.env.CACHE_TTL_MS || 300000);
+// Shopify – für Lagerbestände
+const SHOPIFY_STORE = 'dhb5cz-wf.myshopify.com';
+const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CLIENT_ID || '';
+const SHOPIFY_CLIENT_SECRET = process.env.SHOPIFY_CLIENT_SECRET || '';
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || '';
 
-const LOGIN_USER = process.env.LOGIN_USER || "";
-const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || "";
-const SESSION_SECRET = process.env.SESSION_SECRET || "";
-const SESSION_DAUER_MS = 12 * 60 * 60 * 1000; // 12 Stunden
-const COOKIE_NAME = "vkpi_session";
+// Brevo – für Avisierungs-Mails
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const AVISIERUNG_ABSENDER = { name: 'WKS Weber GmbH', email: 'avisierung@wksweber.ch' };
 
-if (!LOGIN_USER || !LOGIN_PASSWORD || !SESSION_SECRET) {
-  console.warn(
-    "WARNUNG: LOGIN_USER, LOGIN_PASSWORD und SESSION_SECRET sind nicht vollständig gesetzt – der Login lässt niemanden durch."
-  );
+let kunden = [];
+function loadData() {
+  const p = path.join(__dirname, 'data', 'kunden.json');
+  kunden = JSON.parse(fs.readFileSync(p, 'utf-8'));
+  console.log(`${kunden.length} Kunden geladen.`);
 }
-
-/* ------------------------------------------------------------------ *
- * Statuswerte – EINZIGE Stelle, die du ggf. anpassen musst.
- * Tatsächliche Werte über /api/debug prüfen.
- * ------------------------------------------------------------------ */
-const STATUS = {
-  lieferscheinFreigegeben: "released",  // per /api/debug bestaetigt
-  auftragFreigegeben: "released",       // vermutet – ueber /api/debug pruefen
-};
-
-/* ------------------------------- Login ----------------------------- */
-
-function zeitgleich(a, b) {
-  const pa = Buffer.from(String(a));
-  const pb = Buffer.from(String(b));
-  if (pa.length !== pb.length) return false;
-  return crypto.timingSafeEqual(pa, pb);
-}
-
-function tokenErstellen(benutzer) {
-  const ablauf = Date.now() + SESSION_DAUER_MS;
-  const nutzlast = Buffer.from(JSON.stringify({ benutzer, ablauf })).toString("base64url");
-  const signatur = crypto.createHmac("sha256", SESSION_SECRET).update(nutzlast).digest("base64url");
-  return `${nutzlast}.${signatur}`;
-}
-
-function tokenPruefen(token) {
-  if (!token || !SESSION_SECRET) return null;
-  const [nutzlast, signatur] = token.split(".");
-  if (!nutzlast || !signatur) return null;
-  const soll = crypto.createHmac("sha256", SESSION_SECRET).update(nutzlast).digest("base64url");
-  if (!zeitgleich(signatur, soll)) return null;
-  try {
-    const daten = JSON.parse(Buffer.from(nutzlast, "base64url").toString());
-    if (Date.now() > daten.ablauf) return null;
-    return daten;
-  } catch {
-    return null;
-  }
-}
-
-function cookieLesen(req, name) {
-  const roh = req.headers.cookie;
-  if (!roh) return null;
-  for (const teil of roh.split(";")) {
-    const i = teil.indexOf("=");
-    if (i > -1 && teil.slice(0, i).trim() === name) {
-      return decodeURIComponent(teil.slice(i + 1).trim());
-    }
-  }
-  return null;
-}
-
-function angemeldet(req) {
-  return Boolean(tokenPruefen(cookieLesen(req, COOKIE_NAME)));
-}
-
-// Seiten: Weiterleitung auf /login
-function seiteSchuetzen(req, res, next) {
-  if (angemeldet(req)) return next();
-  res.redirect("/login");
-}
-
-// API: Session-Cookie oder x-api-key
-function apiSchuetzen(req, res, next) {
-  if (angemeldet(req)) return next();
-  if (API_KEY && req.get("x-api-key") && zeitgleich(req.get("x-api-key"), API_KEY)) return next();
-  res.status(401).json({ fehler: "Nicht angemeldet" });
-}
-
-app.get("/login", (req, res) => {
-  if (angemeldet(req)) return res.redirect("/");
-  res.type("html").send(loginSeite(req.query.fehler === "1"));
-});
-
-app.post("/login", (req, res) => {
-  const { benutzer = "", passwort = "" } = req.body || {};
-  const ok =
-    LOGIN_USER &&
-    LOGIN_PASSWORD &&
-    SESSION_SECRET &&
-    zeitgleich(benutzer, LOGIN_USER) &&
-    zeitgleich(passwort, LOGIN_PASSWORD);
-
-  if (!ok) return res.redirect("/login?fehler=1");
-
-  res.cookie(COOKIE_NAME, tokenErstellen(benutzer), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== "development",
-    sameSite: "lax",
-    maxAge: SESSION_DAUER_MS,
-  });
-  res.redirect("/");
-});
-
-app.post("/logout", (req, res) => {
-  res.clearCookie(COOKIE_NAME);
-  res.redirect("/login");
-});
-
-/* ------------------------------ Xentral ---------------------------- */
-
-// Xentral v1 erwartet Bracket-Notation:
-//   filter[0][key]=status&filter[0][op]=equals&filter[0][value]=freigegeben
-//   page[number]=1&page[size]=100
-// Ein JSON-String in `filter` oder ein `limit` führt zu 400 request-validation.
-function paramsFlach(obj, prefix, out = []) {
-  if (obj === undefined || obj === null || obj === "") return out;
-  if (Array.isArray(obj)) {
-    obj.forEach((v, i) => paramsFlach(v, `${prefix}[${i}]`, out));
-  } else if (typeof obj === "object") {
-    for (const [k, v] of Object.entries(obj)) {
-      paramsFlach(v, prefix ? `${prefix}[${k}]` : k, out);
-    }
-  } else {
-    out.push([prefix, String(obj)]);
-  }
-  return out;
-}
-
-/* --- Drosselung: alle Xentral-Requests laufen sequenziell durch ein Gate --- *
- * Xentral antwortet mit 429 "Too Many Attempts", wenn Requests zu schnell
- * aufeinander folgen. MIN_ABSTAND_MS haelt den Mindestabstand ein, bei 429
- * wird mit steigender Wartezeit erneut versucht.
- */
-const MIN_ABSTAND_MS = Number(process.env.MIN_ABSTAND_MS || 400);
-const MAX_VERSUCHE = 4;
-
-let gate = Promise.resolve();
-let letzterCall = 0;
-
-function warte(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-function durchGate(fn) {
-  const ergebnis = gate.then(async () => {
-    const abstand = Date.now() - letzterCall;
-    if (abstand < MIN_ABSTAND_MS) await warte(MIN_ABSTAND_MS - abstand);
-    letzterCall = Date.now();
-    return fn();
-  });
-  // Gate darf nicht durch einen Fehler blockiert werden
-  gate = ergebnis.then(
-    () => undefined,
-    () => undefined
-  );
-  return ergebnis;
-}
-
-async function xentralRoh(path, params) {
-  const url = new URL(BASE + path);
-  for (const [k, v] of paramsFlach(params, "")) url.searchParams.append(k, v);
-
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${TOKEN}`, Accept: "application/json" },
-  });
-
-  if (res.status === 429) {
-    const retryAfter = Number(res.headers.get("retry-after"));
-    const err = new Error("429");
-    err.rateLimit = true;
-    err.warteMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : null;
-    throw err;
-  }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Xentral ${res.status} auf ${path}: ${body.slice(0, 300)}`);
-  }
-  return res.json();
-}
-
-async function xentral(path, params = {}) {
-  for (let versuch = 1; versuch <= MAX_VERSUCHE; versuch++) {
-    try {
-      return await durchGate(() => xentralRoh(path, params));
-    } catch (err) {
-      if (!err.rateLimit || versuch === MAX_VERSUCHE) {
-        if (err.rateLimit) {
-          throw new Error(
-            `Xentral 429 auf ${path}: Rate Limit auch nach ${MAX_VERSUCHE} Versuchen. ` +
-              `MIN_ABSTAND_MS erhoehen oder weniger Seiten abfragen.`
-          );
-        }
-        throw err;
-      }
-      const wartezeit = err.warteMs ?? 1000 * 2 ** versuch; // 2s, 4s, 8s
-      console.warn(`429 auf ${path} – warte ${wartezeit} ms (Versuch ${versuch})`);
-      await warte(wartezeit);
-    }
-  }
-}
-
-function filter(pairs) {
-  return pairs.map(([key, value, op = "equals"]) => ({ key, op, value }));
-}
-
-function itemsOf(payload) {
-  if (Array.isArray(payload)) return payload;
-  return payload.data || payload.items || [];
-}
-
-const SEITENGROESSE = 50;   // Xentral-Maximum, hoehere Werte -> 400
-const MAX_SEITEN = 40;
-
-// Holt alle Datensaetze zu einem Filter (nicht nur die Anzahl), weil beide
-// Kennzahlen auf Feldern beruhen, die die API nicht filtern kann.
-async function sammelAlle(path, filterPairs) {
-  const basis = filterPairs.length ? { filter: filter(filterPairs) } : {};
-  const alle = [];
-  let proSeite = null;
-
-  for (let nr = 1; nr <= MAX_SEITEN; nr++) {
-    const items = itemsOf(await xentral(path, { ...basis, page: { number: nr, size: SEITENGROESSE } }));
-    if (proSeite === null) proSeite = items.length;
-    alle.push(...items);
-    if (items.length < SEITENGROESSE) break;
-  }
-  return alle;
-}
-
-/* ---------------------------- Kennzahl 2 ---------------------------- *
- * Zu versendende Auftraege: offen (released), Lagerampel gruen (stockOk)
- * und Autoversand aktiviert.
- */
-function istVersandbereit(auftrag) {
-  const lagerOk = auftrag.stockOk === true;
-  const autoversand = auftrag.delivery?.autoShipping === true;
-  return lagerOk && autoversand;
-}
-
-async function ladeVersandbereiteAuftraege() {
-  const projekt = PROJEKT_ID ? [["project", PROJEKT_ID]] : [];
-  const offene = await sammelAlle("/api/v1/salesOrders", [
-    ["status", STATUS.auftragFreigegeben],
-    ...projekt,
-  ]);
-  return {
-    anzahl: offene.filter(istVersandbereit).length,
-    offeneGesamt: offene.length,
-    ids: new Set(offene.map((a) => String(a.id))),
-  };
-}
-
-/* ---------------------------- Kennzahl 1 ---------------------------- *
- * Lieferscheine ohne Trackingnummer. Der Pfad zur Trackingnummer wird
- * ueber ENV gesetzt, weil er je nach Xentral-Version abweicht –
- * /api/probe zeigt, welcher Endpunkt und welches Feld greifen.
- *
- * TRACKING_QUELLE:
- *   "auftragsstatus" – Lieferscheine, deren Auftrag noch offen ist (Default,
- *                      keine Zusatz-Requests: versendet -> Auftrag completed)
- *   "detail"    – pro Lieferschein /api/v1/deliveryNotes/{id} nachladen
- *   "shipments" – Trackingnummern aus TRACKING_PFAD sammeln und abgleichen
- *   "aus"       – Kennzahl abgeschaltet, liefert null
- */
-const TRACKING_QUELLE = process.env.TRACKING_QUELLE || "auftragsstatus";
-const TRACKING_PFAD = process.env.TRACKING_PFAD || "/api/v1/shipments";
-const TRACKING_FELD = process.env.TRACKING_FELD || "trackingNumber";
-const LS_TAGE = Number(process.env.LS_TAGE || 21); // Betrachtungsfenster in Tagen
-
-function hatTracking(obj) {
-  const wert = TRACKING_FELD.split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
-  if (Array.isArray(wert)) return wert.length > 0;
-  return Boolean(wert && String(wert).trim());
-}
-
-// Nur die letzten LS_TAGE betrachten – aeltere Lieferscheine sind versendet,
-// und die Liste umfasst sonst die komplette Historie.
-function istAktuell(ls) {
-  const datum = new Date(ls.documentDate || ls.createdAt);
-  return Date.now() - datum.getTime() <= LS_TAGE * 86400000;
-}
-
-async function ladeOffeneLieferscheine(offeneAuftragIds) {
-  if (TRACKING_QUELLE === "aus") return { anzahl: null, hinweis: "TRACKING_QUELLE nicht gesetzt" };
-
-  const projekt = PROJEKT_ID ? [["project", PROJEKT_ID]] : [];
-  const alle = await sammelAlle("/api/v1/deliveryNotes", [
-    ["status", STATUS.lieferscheinFreigegeben],
-    ...projekt,
-  ]);
-  const aktuell = alle.filter(istAktuell);
-
-  if (TRACKING_QUELLE === "auftragsstatus") {
-    return {
-      anzahl: aktuell.filter((ls) => offeneAuftragIds.has(String(ls.salesOrder?.id))).length,
-      betrachtet: aktuell.length,
-    };
-  }
-
-  if (TRACKING_QUELLE === "shipments") {
-    const sendungen = await sammelAlle(TRACKING_PFAD, []);
-    const mitTracking = new Set(
-      sendungen
-        .filter(hatTracking)
-        .map((sd) => String(sd.deliveryNote?.id ?? sd.deliveryNoteId ?? sd.deliveryNote ?? ""))
-    );
-    return {
-      anzahl: aktuell.filter((ls) => !mitTracking.has(String(ls.id))).length,
-      betrachtet: aktuell.length,
-    };
-  }
-
-  // "detail": pro Lieferschein einen Request – nur im Zeitfenster vertretbar
-  let ohne = 0;
-  for (const ls of aktuell) {
-    const detail = await xentral(`/api/v1/deliveryNotes/${ls.id}`, {});
-    const daten = detail.data || detail;
-    if (!hatTracking(daten)) ohne += 1;
-  }
-  return { anzahl: ohne, betrachtet: aktuell.length };
-}
-
-/* ------------------- Primaerquelle: Xentral-UI-Endpunkt ------------------- *
- * /api/ui/recommendations liefert genau die Zahlen der Empfehlungs-Kacheln:
- *   openShipments.result  -> Sendungen auf den Weg bringen
- *   openOrders.result     -> offene Auftraege
- * Der /api/ui/-Namespace haengt womoeglich an der Web-Session statt am
- * Bearer-Token. Falls der Aufruf scheitert, wird auf die eigene Zaehlung
- * zurueckgefallen. XENTRAL_COOKIE kann als Notloesung einen Session-Cookie
- * mitschicken (laeuft aber ab und ist damit nicht dauerhaft tragfaehig).
- */
-const UI_QUELLE_AKTIV = process.env.UI_QUELLE !== "aus";
-const XENTRAL_COOKIE = process.env.XENTRAL_COOKIE || "";
-
-async function ladeUiEmpfehlungen() {
-  const res = await durchGate(() =>
-    fetch(BASE + "/api/ui/recommendations", {
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        Accept: "application/json",
-        ...(XENTRAL_COOKIE ? { Cookie: XENTRAL_COOKIE } : {}),
-      },
-    })
-  );
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`UI ${res.status}: ${body.slice(0, 200)}`);
-  }
-  const daten = await res.json();
-  const wert = (k) => {
-    const eintrag = daten[k] || daten.data?.[k];
-    return typeof eintrag?.result === "number" ? eintrag.result : null;
-  };
-  return {
-    openShipments: wert("openShipments"),
-    openOrders: wert("openOrders"),
-    roh: daten,
-  };
-}
-
-/* ===================== Sendungen heute (Post-API) ======================== *
- * Direkte Anbindung an die Post-API, portiert aus post.js des
- * post-sendungs-dashboard. Kein Cache noetig: der heutige Tag wurde dort
- * ohnehin nie gecacht (nur Tage ab 2 Tagen Alter).
- *
- * Alternativ (ohne Post-Zugangsdaten): POST_DASHBOARD_URL setzen, dann wird
- * /api/day des bestehenden Dashboards per Basic Auth abgefragt.
- *
- * ENV direkt:    POST_BASE_URL, POST_CLIENT_ID, POST_CLIENT_SECRET, POST_SCOPE,
- *                POST_FRANKING_LICENSE, POST_PRODUCT, POST_CATEGORY,
- *                POST_TOKEN_URL, POST_ACCEPT_LANGUAGE
- * ENV via HTTP:  POST_DASHBOARD_URL, POST_DASHBOARD_USER, POST_DASHBOARD_PASS
- */
-const POST_BASE_URL = process.env.POST_BASE_URL || "";
-const POST_TOKEN_URL = process.env.POST_TOKEN_URL || "https://api.post.ch/OAuth/token";
-const POST_CLIENT_ID = process.env.POST_CLIENT_ID || "";
-const POST_CLIENT_SECRET = process.env.POST_CLIENT_SECRET || "";
-const POST_SCOPE = process.env.POST_SCOPE || "";
-const POST_FRANKING_LICENSE = process.env.POST_FRANKING_LICENSE || "";
-const POST_PRODUCT = process.env.POST_PRODUCT || "";
-const POST_CATEGORY = process.env.POST_CATEGORY || "PARCEL";
-const POST_ACCEPT_LANGUAGE = process.env.POST_ACCEPT_LANGUAGE || "de";
-
-const POST_DASHBOARD_URL = (process.env.POST_DASHBOARD_URL || "").replace(/\/+$/, "");
-const POST_DASHBOARD_USER = process.env.POST_DASHBOARD_USER || "";
-const POST_DASHBOARD_PASS = process.env.POST_DASHBOARD_PASS || "";
-
-const POST_DIREKT = Boolean(POST_BASE_URL && POST_CLIENT_ID && POST_CLIENT_SECRET && POST_FRANKING_LICENSE);
-
-/* --- Token --- */
-let postToken = null;
-let postTokenAblauf = 0;
-
-async function holePostToken() {
-  if (postToken && Date.now() < postTokenAblauf - 10000) return postToken;
-
-  const res = await fetch(POST_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: POST_CLIENT_ID,
-      client_secret: POST_CLIENT_SECRET,
-      scope: POST_SCOPE,
-    }),
-  });
-  if (!res.ok) throw new Error(`Post-Token-Fehler ${res.status}: ${(await res.text()).slice(0, 160)}`);
-
-  const json = await res.json();
-  postToken = json.access_token;
-  postTokenAblauf = Date.now() + (json.expires_in ? json.expires_in * 1000 : 300000);
-  return postToken;
-}
-
-/* --- Eigene Drosselung: Post erlaubt 50 Anfragen/Minute --- */
-const POST_MIN_ABSTAND_MS = 1300;
-let postNaechsterSlot = 0;
-
-async function postThrottle() {
-  const wait = postNaechsterSlot - Date.now();
-  if (wait > 0) await warte(wait);
-  postNaechsterSlot = Date.now() + POST_MIN_ABSTAND_MS;
-}
-
-async function queryMailpieces(startDate, endDate, limit, offset, versuche = 2) {
-  const lizenz = { frankingLicense: POST_FRANKING_LICENSE, category: POST_CATEGORY };
-  if (POST_PRODUCT) lizenz.product = POST_PRODUCT;
-
-  let letzterFehler;
-  for (let versuch = 0; versuch <= versuche; versuch++) {
-    await postThrottle();
-    try {
-      const token = await holePostToken();
-      const url = new URL(`${POST_BASE_URL}/mailpieces/query/by-franking-licenses`);
-      url.searchParams.set("limit", String(limit));
-      url.searchParams.set("offset", String(offset));
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "Accept-Language": POST_ACCEPT_LANGUAGE,
-        },
-        body: JSON.stringify({
-          frankingLicenses: [lizenz],
-          dateRange: { startDate, endDate },
-        }),
-      });
-
-      // Post liefert 404 statt einer leeren Liste = 0 Sendungen
-      if (res.status === 404) return { mailpieces: [], _metadata: { hasMore: false } };
-
-      if (res.status === 429) {
-        postNaechsterSlot = Date.now() + 61000; // Limit ist minuetlich
-        letzterFehler = new Error("Post 429: Rate limit");
-        continue;
-      }
-      if (!res.ok) throw new Error(`Post-Abfrage-Fehler ${res.status}: ${(await res.text()).slice(0, 160)}`);
-      return await res.json();
-    } catch (err) {
-      letzterFehler = err;
-      if (versuch < versuche) await warte(700 * (versuch + 1));
-    }
-  }
-  throw letzterFehler;
-}
-
-// Zaehlt die tatsaechlichen Items (nicht _metadata.totalCount – laut post.js
-// unzuverlaessig). onlyProcessed filtert NOT_YET_SENT heraus.
-async function postAnzahlFuerTag(dateStr, { onlyProcessed = false } = {}) {
-  const limit = 200;
-  let offset = 0;
-  let hasMore = true;
-  let total = 0;
-  let guard = 0;
-
-  while (hasMore && guard < 50) {
-    guard += 1;
-    const json = await queryMailpieces(dateStr, dateStr, limit, offset);
-    const items = json.mailpieces || [];
-
-    total += onlyProcessed
-      ? items.filter((i) => i?.status?.status !== "NOT_YET_SENT").length
-      : items.length;
-
-    hasMore = Boolean(json._metadata?.hasMore) && items.length > 0;
-    offset += limit;
-  }
-  return total;
-}
-
-/* --- Datumshilfen (lokale Zeit CH, nicht UTC) --- */
-function heuteLokal() {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Zurich" }).format(new Date());
-}
-
-function tagVerschieben(dateStr, delta) {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d.toISOString().slice(0, 10);
-}
-
-function wochentag(dateStr) {
-  return new Date(dateStr + "T00:00:00Z").getUTCDay(); // 0=So, 1=Mo, 6=Sa
-}
-
-function istMontag(dateStr) {
-  return wochentag(dateStr) === 1;
-}
-
-// Am Wochenende erstellte Labels gehen nicht raus – sie zaehlen als offen.
-// Sa: nur Samstag. So: Samstag + Sonntag.
-function wochenendTage(dateStr) {
-  const tag = wochentag(dateStr);
-  if (tag === 6) return [dateStr];
-  if (tag === 0) return [tagVerschieben(dateStr, -1), dateStr];
-  return null;
-}
-
-/* --- Variante A: direkt gegen die Post-API --- */
-async function sendungenHeuteDirekt() {
-  const heute = heuteLokal();
-  const we = wochenendTage(heute);
-
-  // Wochenende: erstellte Labels sind noch nicht verschickt -> als offen zaehlen
-  if (we) {
-    let anzahl = 0;
-    for (const tag of we) anzahl += await postAnzahlFuerTag(tag, { onlyProcessed: false });
-    return { anzahl, datum: heute, alsOffen: true, tage: we, quelle: "post-api" };
-  }
-
-  // "heute" = alle erstellten Labels, deshalb onlyProcessed: false
-  let anzahl = await postAnzahlFuerTag(heute, { onlyProcessed: false });
-
-  // Montag: Sa+So-Labels gehen erst heute raus, also mitzaehlen
-  if (istMontag(heute)) {
-    const [sa, so] = [tagVerschieben(heute, -2), tagVerschieben(heute, -1)];
-    anzahl += await postAnzahlFuerTag(sa, { onlyProcessed: false });
-    anzahl += await postAnzahlFuerTag(so, { onlyProcessed: false });
-  }
-
-  return {
-    anzahl,
-    datum: heute,
-    alsOffen: false,
-    inklWochenende: istMontag(heute),
-    quelle: "post-api",
-  };
-}
-
-/* --- Variante B: ueber das bestehende Dashboard (Montagslogik dort drin) --- */
-async function sendungenHeuteViaDashboard() {
-  const heute = heuteLokal();
-  const kopf = { Accept: "application/json" };
-  if (POST_DASHBOARD_USER) {
-    const b64 = Buffer.from(`${POST_DASHBOARD_USER}:${POST_DASHBOARD_PASS}`).toString("base64");
-    kopf.Authorization = `Basic ${b64}`;
-  }
-
-  const tagAbfragen = async (datum) => {
-    const res = await fetch(`${POST_DASHBOARD_URL}/api/day?date=${datum}`, { headers: kopf });
-    if (res.status === 401) throw new Error("Post-Dashboard 401 – USER/PASS pruefen");
-    if (!res.ok) throw new Error(`Post-Dashboard ${res.status}`);
-    const daten = await res.json();
-    if (daten.error) throw new Error(`Post-Dashboard: ${daten.error}`);
-    return typeof daten.count === "number" ? daten.count : null;
-  };
-
-  const we = wochenendTage(heute);
-  if (we) {
-    let anzahl = 0;
-    for (const tag of we) anzahl += (await tagAbfragen(tag)) || 0;
-    return { anzahl, datum: heute, alsOffen: true, tage: we, quelle: "post-dashboard" };
-  }
-
-  return {
-    anzahl: await tagAbfragen(heute),
-    datum: heute,
-    alsOffen: false,
-    inklWochenende: istMontag(heute),
-    quelle: "post-dashboard",
-  };
-}
-
-async function ladeSendungenHeute() {
-  if (POST_DIREKT) return sendungenHeuteDirekt();
-  if (POST_DASHBOARD_URL) return sendungenHeuteViaDashboard();
-  return { anzahl: null, hinweis: "Post-Zugang nicht konfiguriert" };
-}
-
-async function ladeKpi() {
-  let ui = null;
-  let hinweis = null;
-
-  const post = await ladeSendungenHeute().catch((err) => ({
-    anzahl: null,
-    hinweis: err.message.slice(0, 120),
-  }));
-
-  if (UI_QUELLE_AKTIV) {
-    try {
-      ui = await ladeUiEmpfehlungen();
-    } catch (err) {
-      hinweis = `UI-Quelle nicht verfuegbar: ${err.message.slice(0, 120)}`;
-    }
-  }
-
-  // Beide Zahlen direkt aus Xentral
-  if (ui && ui.openShipments !== null && ui.openOrders !== null) {
-    return {
-      offeneLieferscheine: ui.openShipments,
-      offeneAuftraege: ui.openOrders,
-      sendungenHeute: post.anzahl,
-      inklWochenende: post.inklWochenende ?? null,
-      postAlsOffen: post.alsOffen ?? false,
-      quelle: "ui/recommendations",
-      hinweis: [hinweis, post.hinweis].filter(Boolean).join(" · ") || null,
-      stand: new Date().toISOString(),
-    };
-  }
-
-  // Fallback: eigene Zaehlung, falls der UI-Endpunkt nicht erreichbar ist
-  const auftraege = await ladeVersandbereiteAuftraege();
-  const ls = await ladeOffeneLieferscheine(auftraege.ids);
-
-  return {
-    offeneLieferscheine: ui?.openShipments ?? ls.anzahl,
-    offeneAuftraege: ui?.openOrders ?? auftraege.offeneGesamt,
-    sendungenHeute: post.anzahl,
-    inklWochenende: post.inklWochenende ?? null,
-    postAlsOffen: post.alsOffen ?? false,
-    versandbereitEigen: auftraege.anzahl,
-    quelle: "eigene Zaehlung",
-    hinweis,
-    stand: new Date().toISOString(),
-  };
-}
-
-/* ------------------------------- Cache ----------------------------- */
-
-let cache = { data: null, zeit: 0, laeuft: null };
-
-async function kpiMitCache(force = false) {
-  const frisch = Date.now() - cache.zeit < CACHE_TTL_MS;
-  if (!force && cache.data && frisch) return { ...cache.data, cached: true };
-  if (cache.laeuft) return cache.laeuft;
-
-  cache.laeuft = ladeKpi()
-    .then((data) => {
-      cache = { data, zeit: Date.now(), laeuft: null };
-      return { ...data, cached: false };
-    })
-    .catch((err) => {
-      cache.laeuft = null;
-      throw err;
-    });
-  return cache.laeuft;
-}
-
-/* ------------------------------- Routen ---------------------------- */
-
-app.get("/healthz", (_req, res) => res.send("ok"));
-
-// Zeigt, welcher Stand tatsaechlich live ist – hilft beim Deploy-Abgleich.
-app.get("/api/version", (_req, res) =>
-  res.json({
-    version: "2026-08-13-n",
-    routen: ["/api/kpi", "/api/ui-test", "/api/post-test", "/api/debug", "/api/probe", "/api/version"],
-    seitengroesse: SEITENGROESSE,
-    minAbstandMs: MIN_ABSTAND_MS,
-    cacheTtlMs: CACHE_TTL_MS,
+loadData();
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'kundendb-secret-change-me',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }, // 7 Tage
   })
 );
 
-app.get("/api/kpi", apiSchuetzen, async (req, res) => {
-  try {
-    res.set("Cache-Control", "no-store");
-    res.json(await kpiMitCache(req.query.force === "1"));
-  } catch (err) {
-    res.status(502).json({ fehler: err.message });
+// --- Login ---
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === USERNAME && password === PASSWORD) {
+    req.session.authed = true;
+    return res.json({ ok: true });
   }
+  res.status(401).json({ ok: false, error: 'Falsches Passwort' });
 });
 
-// Statusverteilung ueber viele Seiten – zeigt, welche Statuswerte es gibt
-// und wie viele Datensaetze jeweils darauf stehen. ?seiten=N steuert die Tiefe.
-app.get("/api/debug", apiSchuetzen, async (req, res) => {
-  const maxSeiten = Math.min(Number(req.query.seiten || 6), 40);
-  try {
-    const out = {};
-    for (const [name, path] of [
-      ["deliveryNotes", "/api/v1/deliveryNotes"],
-      ["salesOrders", "/api/v1/salesOrders"],
-    ]) {
-      const verteilung = {};
-      let gesamt = 0;
-      let proSeite = null;
-      let beispieleJeStatus = {};
-      let letzte = [];
+app.get('/api/session', (req, res) => {
+  res.json({ authed: !!req.session.authed });
+});
 
-      for (let nr = 1; nr <= maxSeiten; nr++) {
-        const payload = await xentral(path, { page: { number: nr, size: SEITENGROESSE } });
-        const items = itemsOf(payload);
-        if (proSeite === null) proSeite = items.length;
-        for (const i of items) {
-          const st = String(i.status);
-          verteilung[st] = (verteilung[st] || 0) + 1;
-          if (!beispieleJeStatus[st]) {
-            beispieleJeStatus[st] = {
-              nummer: i.number || i.documentNumber,
-              datum: i.documentDate || i.date,
-              aktualisiert: i.updatedAt,
-            };
-          }
-        }
-        gesamt += items.length;
-        letzte = items.slice(-3).map((i) => ({
-          nummer: i.number || i.documentNumber,
-          status: i.status,
-          datum: i.documentDate || i.date,
-        }));
-        if (items.length < (proSeite || 1)) break;
+app.post('/api/logout', (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+function requireAuth(req, res, next) {
+  if (req.session && req.session.authed) return next();
+  res.status(401).json({ error: 'Nicht angemeldet' });
+}
+
+// --- Suche ---
+function norm(s) {
+  return (s || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // Umlaute/Akzente vereinheitlichen
+}
+
+app.get('/api/kunden', requireAuth, (req, res) => {
+  const q = norm(req.query.q || '');
+  if (!q) return res.json([]);
+
+  const results = kunden
+    .filter((k) => {
+      if (norm(k.kdnr).includes(q)) return true;
+      if (norm(k.kdnrName).includes(q)) return true;
+      if (k.suchNamen.some((n) => norm(n).includes(q))) return true;
+      return false;
+    })
+    .slice(0, 50)
+    .map((k) => ({
+      kdnr: k.kdnr,
+      kdnrName: k.kdnrName,
+      ort: k.anlage.ort,
+      anlagentyp: k.anlage.anlagentyp,
+    }));
+
+  res.json(results);
+});
+
+app.get('/api/kunden/:kdnr', requireAuth, (req, res) => {
+  const k = kunden.find((x) => x.kdnr === req.params.kdnr);
+  if (!k) return res.status(404).json({ error: 'Nicht gefunden' });
+  res.json(k);
+});
+
+// Alle Kunden, die am selben Tag (Format DD.MM.YYYY) einen Service-Termin haben – für die Tagestour
+app.get('/api/tagestour/:datum', requireAuth, (req, res) => {
+  const datum = req.params.datum;
+  const treffer = [];
+  kunden.forEach((k) => {
+    const termin = (k.termine || []).find((t) => t.datum === datum);
+    if (termin) {
+      treffer.push({
+        kdnr: k.kdnr,
+        kdnrName: k.kdnrName,
+        ort: k.anlage ? k.anlage.ort : null,
+        zeit: termin.zeit || null,
+        fahrer: k.planung ? k.planung.fahrer : null,
+        notizen: termin.notizen || null,
+        storniert: termin.storniert || false,
+        koordinaten: k.anlage ? k.anlage.koordinaten : null,
+      });
+    }
+  });
+  // Chronologisch sortieren, Termine ohne Zeitangabe ans Ende
+  treffer.sort((a, b) => {
+    const za = a.zeit ? parseInt(String(a.zeit).replace(/\D/g, ''), 10) : Infinity;
+    const zb = b.zeit ? parseInt(String(b.zeit).replace(/\D/g, ''), 10) : Infinity;
+    return za - zb;
+  });
+  res.json({ datum, kunden: treffer });
+});
+
+// Alle Tage im aktuellen Jahr, an denen mindestens ein Service-Termin stattfindet (für "Einsatztage")
+function parseDatumServer(v) {
+  const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+app.get('/api/tage', requireAuth, (req, res) => {
+  const jahr = new Date().getFullYear();
+  const map = {};
+  kunden.forEach((k) => {
+    (k.termine || []).forEach((t) => {
+      if (!t.datum) return;
+      const d = parseDatumServer(t.datum);
+      if (!d || d.getFullYear() !== jahr) return;
+      if (!map[t.datum]) map[t.datum] = { ralph: 0, kathrin: 0, sonst: 0 };
+      const f = k.planung ? k.planung.fahrer : null;
+      if (f === 'Ralph') map[t.datum].ralph++;
+      else if (f === 'Kathrin') map[t.datum].kathrin++;
+      else map[t.datum].sonst++;
+    });
+  });
+  const tage = Object.keys(map)
+    .map((datum) => ({ datum, ...map[datum] }))
+    .sort((a, b) => parseDatumServer(a.datum) - parseDatumServer(b.datum));
+  res.json({ jahr, tage });
+});
+
+// ---- Routen-Berechnung via Google Directions API ----
+function parseKoordinatenServer(v) {
+  if (!v) return null;
+  const m = String(v).match(/([NS])\s*([\d.]+)\D*([EW])\s*([\d.]+)/i);
+  if (!m) return null;
+  let lat = parseFloat(m[2]);
+  let lon = parseFloat(m[4]);
+  if (/S/i.test(m[1])) lat = -lat;
+  if (/W/i.test(m[3])) lon = -lon;
+  if (isNaN(lat) || isNaN(lon)) return null;
+  return { lat, lon };
+}
+
+// Parst DMS-Koordinaten wie 47°23'56.2"N 9°17'28.2"E
+function parseDMS(str) {
+  const m = String(str).match(/(\d+)°(\d+)'([\d.]+)"?\s*([NS])\s+(\d+)°(\d+)'([\d.]+)"?\s*([EW])/i);
+  if (!m) return null;
+  let lat = Number(m[1]) + Number(m[2]) / 60 + Number(m[3]) / 3600;
+  let lon = Number(m[5]) + Number(m[6]) / 60 + Number(m[7]) / 3600;
+  if (/S/i.test(m[4])) lat = -lat;
+  if (/W/i.test(m[8])) lon = -lon;
+  return { lat, lon };
+}
+
+// Betriebsstandort (Ausgangs-/Endpunkt der Touren)
+const BASIS_KOORDINATE = parseDMS(`47°23'56.2"N 9°17'28.2"E`);
+
+// Manuelle Koordinaten-Korrekturen für einzelne Kunden, bei denen die hinterlegte
+// Koordinate (und auch der Adress-Fallback) von Google nicht gefunden wird.
+const KOORDINATEN_OVERRIDE = {
+  '100': parseDMS(`47°06'52.7"N 9°15'11.9"E`),
+};
+
+// Baut den Anfrage-Parameter für einen Punkt: normalerweise Koordinaten,
+// im Fallback-Modus die Postadresse (falls vorhanden), damit Google selbst
+// den nächstgelegenen befahrbaren Punkt sucht.
+function punktParam(p, nutzeAdresse) {
+  if (nutzeAdresse && p.adresse) return p.adresse;
+  return `${p.lat},${p.lon}`;
+}
+
+async function rufeDirectionsAuf(chunk, apiKey, nutzeAdresse) {
+  const origin = punktParam(chunk[0], nutzeAdresse);
+  const destination = punktParam(chunk[chunk.length - 1], nutzeAdresse);
+  const waypointsMitte = chunk.slice(1, -1).map((p) => punktParam(p, nutzeAdresse)).join('|');
+
+  const url = new URL('https://maps.googleapis.com/maps/api/directions/json');
+  url.searchParams.set('origin', origin);
+  url.searchParams.set('destination', destination);
+  if (waypointsMitte) url.searchParams.set('waypoints', waypointsMitte);
+  url.searchParams.set('region', 'ch');
+  url.searchParams.set('key', apiKey);
+
+  const r = await fetch(url.toString());
+  return r.json();
+}
+
+// Ruft die Google Directions API auf; bricht die Punkteliste in Blöcke, falls
+// mehr Stopps als in einer einzelnen Anfrage erlaubt sind (Google-Limit: 25 Punkte/Anfrage).
+// Bei ZERO_RESULTS wird der betroffene Block automatisch nochmal mit den Postadressen
+// statt den rohen Koordinaten versucht (Google findet dann selbst den nächsten befahrbaren Punkt).
+// Gibt neben der Summe auch die einzelnen Etappen (in Reihenfolge der Punkteliste) zurück.
+async function berechneRoute(punkte, apiKey) {
+  const MAX_PUNKTE_PRO_ANFRAGE = 23; // inkl. Start/Ziel, konservativ gewählt
+  let gesamtMeter = 0;
+  let gesamtSekunden = 0;
+  const etappen = []; // { meter, sekunden } pro Teilstrecke, in Reihenfolge der Punkteliste
+
+  let start = 0;
+  while (start < punkte.length - 1) {
+    const ende = Math.min(start + MAX_PUNKTE_PRO_ANFRAGE - 1, punkte.length - 1);
+    const chunk = punkte.slice(start, ende + 1);
+
+    let data = await rufeDirectionsAuf(chunk, apiKey, false);
+
+    if (data.status === 'ZERO_RESULTS' && chunk.some((p) => p.adresse)) {
+      data = await rufeDirectionsAuf(chunk, apiKey, true);
+    }
+
+    if (data.status !== 'OK') {
+      throw new Error(`Google Directions: ${data.status}${data.error_message ? ' – ' + data.error_message : ''}`);
+    }
+
+    const route = data.routes[0];
+    route.legs.forEach((leg) => {
+      gesamtMeter += leg.distance.value;
+      gesamtSekunden += leg.duration.value;
+      etappen.push({ meter: leg.distance.value, sekunden: leg.duration.value });
+    });
+
+    start = ende;
+  }
+
+  return { meter: gesamtMeter, sekunden: gesamtSekunden, etappen };
+}
+
+// Alle Tage (als Timestamp um Mitternacht), an denen ein bestimmter Fahrer mindestens einen Termin hat
+function alleArbeitstage(fahrerName) {
+  const dates = new Set();
+  kunden.forEach((k) => {
+    if (!k.planung || k.planung.fahrer !== fahrerName) return;
+    (k.termine || []).forEach((t) => {
+      if (!t.datum) return;
+      const d = parseDatumServer(t.datum);
+      if (d) dates.add(d.getTime());
+    });
+  });
+  return dates;
+}
+
+// Ermittelt die zusammenhängende Kette aufeinanderfolgender Arbeitstage, zu der ein Datum gehört
+function findeKette(datum, arbeitstageSet) {
+  const start = parseDatumServer(datum);
+  if (!start) return null;
+  const TAG = 24 * 60 * 60 * 1000;
+  let kettenStart = start.getTime();
+  while (arbeitstageSet.has(kettenStart - TAG)) kettenStart -= TAG;
+  let kettenEnde = start.getTime();
+  while (arbeitstageSet.has(kettenEnde + TAG)) kettenEnde += TAG;
+  const laenge = Math.round((kettenEnde - kettenStart) / TAG) + 1;
+  return {
+    istErsterTag: start.getTime() === kettenStart,
+    istLetzterTag: start.getTime() === kettenEnde,
+    laenge,
+  };
+}
+
+// Baut die Punkteliste (inkl. Basis-Standort-Regel) für einen Fahrer/Tag und berechnet die Route.
+// Ergebnisse werden im Speicher gecacht, damit wiederholte Anfragen (z.B. Jahressumme) nicht
+// jedes Mal neu bei Google abgefragt werden müssen.
+const routenCache = new Map(); // Key: "datum|fahrer" -> { km, dauerMinuten, ... } | { fehler: true }
+
+function ermittleRoutenPunkte(datum, fahrer) {
+  const stopps = [];
+  kunden.forEach((k) => {
+    const termin = (k.termine || []).find((t) => t.datum === datum);
+    if (termin && k.planung && k.planung.fahrer === fahrer) {
+      const koord = KOORDINATEN_OVERRIDE[k.kdnr]
+        ? { ...KOORDINATEN_OVERRIDE[k.kdnr] }
+        : parseKoordinatenServer(k.anlage && k.anlage.koordinaten);
+      if (koord) {
+        const a = k.anlage || {};
+        const adresseText = [a.adresse, [a.plz, a.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+        if (adresseText) koord.adresse = adresseText + ', Schweiz';
+        koord.kdnr = k.kdnr;
+        koord.name = k.kdnrName;
+        koord.dauer = k.anlage ? parseInt(k.anlage.dauer, 10) || 0 : 0;
+      }
+      stopps.push({ zeit: termin.zeit || null, koord });
+    }
+  });
+  stopps.sort((a, b) => {
+    const za = a.zeit ? parseInt(String(a.zeit).replace(/\D/g, ''), 10) : Infinity;
+    const zb = b.zeit ? parseInt(String(b.zeit).replace(/\D/g, ''), 10) : Infinity;
+    return za - zb;
+  });
+
+  const kundenPunkte = stopps
+    .filter((s) => s.koord)
+    .map((s) => ({ ...s.koord, zeit: s.zeit }));
+  const fehlendeKoordinaten = stopps.length - kundenPunkte.length;
+
+  const HERISAU_PUNKT = BASIS_KOORDINATE ? { ...BASIS_KOORDINATE, kdnr: null, name: 'Herisau' } : null;
+
+  let punkte = kundenPunkte;
+  let basisHinweis = null;
+  if (HERISAU_PUNKT && kundenPunkte.length) {
+    if (fahrer === 'Kathrin') {
+      punkte = [HERISAU_PUNKT, ...kundenPunkte, { ...HERISAU_PUNKT }];
+      basisHinweis = 'Abfahrt/Ankunft Herisau';
+    } else if (fahrer === 'Ralph') {
+      const kette = findeKette(datum, alleArbeitstage('Ralph'));
+      if (!kette || kette.laenge <= 1) {
+        punkte = [HERISAU_PUNKT, ...kundenPunkte, { ...HERISAU_PUNKT }];
+        basisHinweis = 'Abfahrt/Ankunft Herisau';
+      } else if (kette.istErsterTag) {
+        punkte = [HERISAU_PUNKT, ...kundenPunkte];
+        basisHinweis = 'Abfahrt Herisau';
+      } else if (kette.istLetzterTag) {
+        punkte = [...kundenPunkte, { ...HERISAU_PUNKT }];
+        basisHinweis = 'Ankunft Herisau';
+      }
+    }
+  }
+
+  return { punkte, anzahlStopps: stopps.length, fehlendeKoordinaten, basisHinweis };
+}
+
+function zeitStringZuMinuten(zeit) {
+  if (!zeit) return null;
+  const digits = String(zeit).replace(/\D/g, '').padStart(4, '0');
+  return parseInt(digits.slice(0, 2), 10) * 60 + parseInt(digits.slice(2, 4), 10);
+}
+
+function minutenZuZeitString(min) {
+  const gesamt = ((Math.round(min) % 1440) + 1440) % 1440; // auf 0-1439 normalisieren (Tagesgrenze)
+  const hh = String(Math.floor(gesamt / 60)).padStart(2, '0');
+  const mm = String(gesamt % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+async function holeRouteFuerTag(datum, fahrer, apiKey) {
+  const cacheKey = `${datum}|${fahrer}`;
+  if (routenCache.has(cacheKey)) return routenCache.get(cacheKey);
+
+  const { punkte, anzahlStopps, fehlendeKoordinaten, basisHinweis } = ermittleRoutenPunkte(datum, fahrer);
+
+  let ergebnis;
+  if (punkte.length < 2) {
+    ergebnis = { km: null, dauerMinuten: null, anzahlStopps, fehlendeKoordinaten, hinweis: 'Zu wenige Koordinaten für eine Route.' };
+  } else {
+    try {
+      const { meter, sekunden, etappen } = await berechneRoute(punkte, apiKey);
+
+      // Etappen mit Von/Nach-Bezeichnung anreichern (für Anzeige zwischen den Kunden)
+      const etappenBeschriftet = etappen.map((e, i) => ({
+        von: punkte[i].name,
+        vonKdnr: punkte[i].kdnr,
+        nach: punkte[i + 1].name,
+        nachKdnr: punkte[i + 1].kdnr,
+        minuten: Math.round(e.sekunden / 60),
+      }));
+
+      // Abfahrtszeit Herisau (falls erster Punkt Herisau ist): Ankunftszeit beim ersten
+      // Kunden minus Fahrzeit dorthin.
+      let abfahrtHerisau = null;
+      if (punkte[0].name === 'Herisau' && punkte[1]) {
+        const zielMin = zeitStringZuMinuten(punkte[1].zeit);
+        if (zielMin !== null) abfahrtHerisau = minutenZuZeitString(zielMin - etappenBeschriftet[0].minuten);
       }
 
-      out[name] = {
-        geprueft: gesamt,
-        seitenGeprueft: Math.ceil(gesamt / (proSeite || 1)),
-        vollstaendig: gesamt < maxSeiten * (proSeite || SEITENGROESSE),
-        verteilung,
-        aeltesterJeStatus: beispieleJeStatus,
-        letzteDatensaetze: letzte,
-      };
-    }
-    res.json(out);
-  } catch (err) {
-    res.status(502).json({ fehler: err.message });
-  }
-});
+      // Ankunftszeit Herisau (falls letzter Punkt Herisau ist): Ankunftszeit beim letzten
+      // Kunden plus dessen Aufenthaltsdauer plus Fahrzeit nach Herisau.
+      let ankunftHerisau = null;
+      const letzterIndex = punkte.length - 1;
+      if (punkte[letzterIndex].name === 'Herisau' && punkte[letzterIndex - 1]) {
+        const letzterKunde = punkte[letzterIndex - 1];
+        const startMin = zeitStringZuMinuten(letzterKunde.zeit);
+        if (startMin !== null) {
+          const letzteEtappe = etappenBeschriftet[etappenBeschriftet.length - 1];
+          ankunftHerisau = minutenZuZeitString(startMin + (letzterKunde.dauer || 0) + letzteEtappe.minuten);
+        }
+      }
 
-// Beantwortet zwei Fragen: wo liegt die Trackingnummer, und kann ich
-// absteigend sortieren? Nur wenige Requests, unkritisch fuers Rate Limit.
-app.get("/api/post-test", apiSchuetzen, async (_req, res) => {
-  try {
-    res.json({ direkt: POST_DIREKT, ...(await ladeSendungenHeute()) });
-  } catch (err) {
-    res.status(502).json({ fehler: err.message });
-  }
-});
-
-app.get("/api/ui-test", apiSchuetzen, async (_req, res) => {
-  try {
-    res.json(await ladeUiEmpfehlungen());
-  } catch (err) {
-    res.status(502).json({ fehler: err.message });
-  }
-});
-
-app.get("/api/probe", apiSchuetzen, async (_req, res) => {
-  const out = { trackingKandidaten: {}, sortierung: {}, lieferscheinDetail: null };
-
-  for (const path of [
-    "/api/v1/shipments",
-    "/api/v1/shippings",
-    "/api/v1/parcels",
-    "/api/v1/trackings",
-    "/api/v2/shipments",
-    "/api/v2/deliveryNotes",
-  ]) {
-    try {
-      const payload = await xentral(path, { page: { number: 1, size: 5 } });
-      const items = itemsOf(payload);
-      out.trackingKandidaten[path] = {
-        ok: true,
-        anzahl: items.length,
-        felder: items[0] ? Object.keys(items[0]) : null,
-        beispiel: items[0] || null,
+      ergebnis = {
+        km: Math.round((meter / 1000) * 10) / 10,
+        dauerMinuten: Math.round(sekunden / 60),
+        anzahlStopps,
+        fehlendeKoordinaten,
+        basisHinweis,
+        etappen: etappenBeschriftet,
+        abfahrtHerisau,
+        ankunftHerisau,
       };
     } catch (err) {
-      out.trackingKandidaten[path] = { ok: false, fehler: err.message.slice(0, 140) };
+      ergebnis = { fehler: err.message, anzahlStopps, fehlendeKoordinaten };
     }
   }
+  routenCache.set(cacheKey, ergebnis);
+  return ergebnis;
+}
 
-  // Detailansicht eines Lieferscheins – enthaelt sie ein Tracking-Feld?
-  try {
-    const liste = itemsOf(await xentral("/api/v1/deliveryNotes", { page: { number: 1, size: 1 } }));
-    if (liste[0]) {
-      const detail = await xentral(`/api/v1/deliveryNotes/${liste[0].id}`, {});
-      const daten = detail.data || detail;
-      out.lieferscheinDetail = { felder: Object.keys(daten), beispiel: daten };
-    }
-  } catch (err) {
-    out.lieferscheinDetail = { fehler: err.message.slice(0, 200) };
+// Fahrstrecke + Fahrzeit für die Tagestour eines Fahrers an einem Datum
+app.get('/api/route/:datum/:fahrer', requireAuth, async (req, res) => {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'GOOGLE_MAPS_API_KEY ist nicht gesetzt.' });
+  }
+  const { datum, fahrer } = req.params;
+  const ergebnis = await holeRouteFuerTag(datum, fahrer, apiKey);
+  if (ergebnis.fehler) return res.status(502).json({ error: ergebnis.fehler });
+  res.json(ergebnis);
+});
+
+// Summe aller Fahrstrecken/-zeiten im aktuellen Jahr (mit Cache; parallelisiert in kleinen Blöcken)
+app.get('/api/tage/summe', requireAuth, async (req, res) => {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    return res.status(400).json({ error: 'GOOGLE_MAPS_API_KEY ist nicht gesetzt.' });
   }
 
-  // Welche Sortier-Syntax akzeptiert die API?
-  const varianten = {
-    "sort[0][field]/direction": { sort: [{ field: "id", direction: "desc" }] },
-    "sort[0][key]/order": { sort: [{ key: "id", order: "desc" }] },
-    "sort=-id": { sort: "-id" },
-    "order=id&direction=desc": { order: "id", direction: "desc" },
+  const jahr = new Date().getFullYear();
+  const aufgaben = []; // { datum, fahrer }
+  const map = {};
+  kunden.forEach((k) => {
+    (k.termine || []).forEach((t) => {
+      if (!t.datum) return;
+      const d = parseDatumServer(t.datum);
+      if (!d || d.getFullYear() !== jahr) return;
+      const f = k.planung ? k.planung.fahrer : null;
+      if (f !== 'Ralph' && f !== 'Kathrin') return;
+      const key = `${t.datum}|${f}`;
+      if (!map[key]) {
+        map[key] = true;
+        aufgaben.push({ datum: t.datum, fahrer: f });
+      }
+    });
+  });
+
+  let totalKm = 0;
+  let totalMinuten = 0;
+  let ausgewertet = 0;
+  let fehlerAnzahl = 0;
+  const fehlerDetails = [];
+  const proFahrer = {}; // { 'Ralph': {km, minuten, tage}, 'Kathrin': {...} }
+
+  const PARALLEL = 6;
+  let index = 0;
+  async function worker() {
+    while (index < aufgaben.length) {
+      const { datum, fahrer } = aufgaben[index++];
+      const erg = await holeRouteFuerTag(datum, fahrer, apiKey);
+      if (erg.fehler) {
+        fehlerAnzahl++;
+        fehlerDetails.push({ datum, fahrer, grund: erg.fehler });
+      } else if (erg.km !== null) {
+        totalKm += erg.km;
+        totalMinuten += erg.dauerMinuten;
+        ausgewertet++;
+        if (!proFahrer[fahrer]) proFahrer[fahrer] = { km: 0, minuten: 0, tage: 0 };
+        proFahrer[fahrer].km += erg.km;
+        proFahrer[fahrer].minuten += erg.dauerMinuten;
+        proFahrer[fahrer].tage++;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: PARALLEL }, worker));
+
+  // Pro Fahrer runden
+  Object.values(proFahrer).forEach(f => { f.km = Math.round(f.km * 10) / 10; });
+
+  res.json({
+    jahr,
+    totalKm: Math.round(totalKm * 10) / 10,
+    totalMinuten,
+    tageAusgewertet: ausgewertet,
+    tageGesamt: aufgaben.length,
+    fehlerAnzahl,
+    fehlerDetails,
+    proFahrer,
+  });
+});
+
+app.get('/api/meta', requireAuth, (req, res) => {
+  res.json({ anzahl: kunden.length, gmapKey: process.env.GOOGLE_MAPS_API_KEY ? true : false });
+});
+
+app.get('/api/config', requireAuth, (req, res) => {
+  res.json({ gmapKey: process.env.GOOGLE_MAPS_API_KEY || '' });
+});
+
+// ---- Brevo Mail-Versand ----
+function icsKalendereintrag(terminDatum, zeitVon, zeitBis, kundenName, ort) {
+  // terminDatum = "DD.MM.YYYY", zeitVon/zeitBis = "HH:MM"
+  const [dd, mm, yyyy] = terminDatum.split('.');
+  const [hV, mV] = zeitVon.split(':');
+  const [hB, mB] = zeitBis.split(':');
+  const dtStart = `${yyyy}${mm}${dd}T${hV}${mV}00`;
+  const dtEnd = `${yyyy}${mm}${dd}T${hB}${mB}00`;
+  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//WKS Weber GmbH//Avisierung//DE',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `DTSTART;TZID=Europe/Zurich:${dtStart}`,
+    `DTEND;TZID=Europe/Zurich:${dtEnd}`,
+    `DTSTAMP:${now}`,
+    `UID:wks-${dd}${mm}${yyyy}-${Date.now()}@wksweber.ch`,
+    'SUMMARY:Servicetermin WKS',
+    'DESCRIPTION:Service-Termin Ihrer Kläranlage durch WKS Weber GmbH\\nBei kurzfristigen Änderungen: info@wksweber.ch / 071 352 38 22',
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+}
+
+async function sendBrevoMail({ an, betreff, htmlBody, icsContent }) {
+  const empfaenger = an.split(';').map((m) => m.trim()).filter((m) => m.includes('@')).map((m) => ({ email: m }));
+  if (!empfaenger.length) throw new Error('Keine gültige E-Mail-Adresse');
+
+  const payload = {
+    sender: AVISIERUNG_ABSENDER,
+    to: empfaenger,
+    subject: betreff,
+    htmlContent: htmlBody,
   };
-  for (const [name, params] of Object.entries(varianten)) {
-    try {
-      const items = itemsOf(
-        await xentral("/api/v1/deliveryNotes", { ...params, page: { number: 1, size: 3 } })
-      );
-      out.sortierung[name] = { ok: true, erste: items.map((i) => i.number) };
-    } catch (err) {
-      out.sortierung[name] = { ok: false, fehler: err.message.slice(0, 120) };
-    }
+
+  if (icsContent) {
+    payload.attachment = [{
+      name: 'termin.ics',
+      content: Buffer.from(icsContent).toString('base64'),
+    }];
   }
 
-  res.json(out);
+  const r = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': BREVO_API_KEY,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`Brevo ${r.status}: ${body.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+// Test-Mail senden (mit echten Kundendaten)
+app.post('/api/avisierung/test', requireAuth, async (req, res) => {
+  if (!BREVO_API_KEY) {
+    return res.status(400).json({ error: 'BREVO_API_KEY ist nicht gesetzt.' });
+  }
+
+  const testMail = req.body.email || 'info@ralphweber.ch';
+  const kdnr = req.body.kdnr;
+
+  let kundenName, terminDatum, zeitfenster, ort, zeitVon, zeitBis;
+
+  if (kdnr) {
+    // Echten Kunden verwenden
+    const kunde = kunden.find((k) => k.kdnr === kdnr);
+    if (!kunde) return res.status(404).json({ error: 'Kunde nicht gefunden.' });
+
+    kundenName = kunde.kdnrName || 'Kunde ' + kdnr;
+    ort = kunde.anlage ? [kunde.anlage.adresse, [kunde.anlage.plz, kunde.anlage.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ') : '';
+
+    // Nächsten zukünftigen Termin finden
+    const heute = new Date(); heute.setHours(0, 0, 0, 0);
+    const termin = (kunde.termine || []).find((t) => {
+      if (!t.datum || t.storniert) return false;
+      const m = t.datum.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+      if (!m) return false;
+      const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+      return d >= heute;
+    });
+
+    if (!termin) return res.status(400).json({ error: 'Kein zukünftiger Termin für diesen Kunden.' });
+
+    terminDatum = termin.datum;
+
+    // Zeitfenster berechnen (gleiche Logik wie in /api/avisierung)
+    if (termin.zeit) {
+      const digits = String(termin.zeit).replace(/\D/g, '').padStart(4, '0');
+      const hh = parseInt(digits.slice(0, 2), 10), mm = parseInt(digits.slice(2, 4), 10);
+      const total = hh * 60 + mm;
+      let vonMin, bisMin;
+      if (total < 450) { vonMin = total; bisMin = 450; }
+      else if (total === 450) { vonMin = 450; bisMin = 480; }
+      else if (total <= 510) { vonMin = 465; bisMin = 600; }
+      else if (total <= 600) { vonMin = Math.max(480, Math.floor((total - 60) / 30) * 30); bisMin = Math.ceil((total + 60) / 30) * 30; }
+      else if (total <= 689) { vonMin = Math.floor((total - 60) / 30) * 30; bisMin = Math.ceil((total + 60) / 30) * 30; if (bisMin >= 720) bisMin = 780; }
+      else if (total <= 780) { vonMin = 630; bisMin = 840; }
+      else if (total <= 900) { vonMin = Math.floor((total - 60) / 30) * 30; bisMin = Math.ceil((total + 60) / 30) * 30; }
+      else if (total <= 1020) { vonMin = Math.floor((total - 60) / 30) * 30; bisMin = Math.ceil((total + 60) / 30) * 30; }
+      else if (total <= 1050) { vonMin = 900; bisMin = 1065; }
+      else { vonMin = 960; bisMin = 1110; }
+      if (vonMin >= 720 && vonMin < 765) vonMin = 780;
+      if (bisMin >= 720 && bisMin < 765) bisMin = 780;
+      function fmt(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+      zeitVon = fmt(vonMin); zeitBis = fmt(bisMin);
+      zeitfenster = zeitVon + ' – ' + zeitBis + ' Uhr';
+    } else {
+      zeitfenster = 'wird noch bekanntgegeben';
+      zeitVon = '08:00'; zeitBis = '12:00';
+    }
+  } else {
+    // Fallback: Beispieldaten
+    kundenName = 'Muster AG';
+    terminDatum = '15.03.2027';
+    zeitfenster = '09:30 – 11:30 Uhr';
+    zeitVon = '09:30'; zeitBis = '11:30';
+    ort = 'Musterstrasse 1, 9000 St. Gallen';
+  }
+
+  const logoUrl = 'https://wks-dashboard.onrender.com/tropfen-icon.png';
+  const htmlBody = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333;background:#fff;">
+      <div style="background:#1a1a1a;padding:24px 20px;border-radius:12px 12px 0 0;text-align:center;">
+        <img src="${logoUrl}" alt="WKS" style="width:44px;height:44px;margin-bottom:8px;filter:brightness(2);" />
+        <div style="color:#fff;font-size:20px;font-weight:700;">Service-Termin Ihrer Kläranlage</div>
+      </div>
+      <div style="padding:28px 24px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 12px 12px;">
+        <p style="margin:0 0 16px;">Lieber WKS-Kunde</p>
+        <p style="margin:0 0 20px;">Wir möchten Sie darüber informieren, dass der nächste Service Ihrer Kläranlage geplant ist:</p>
+        <div style="background:#f5f5f5;border-radius:10px;padding:16px 18px;margin:0 0 20px;">
+          <table style="border-collapse:collapse;width:100%;">
+            <tr><td style="padding:10px 0;font-weight:600;color:#1a1a1a;width:120px;border-bottom:1px solid #ddd;">Datum</td><td style="padding:10px 0;border-bottom:1px solid #ddd;">${terminDatum}</td></tr>
+            <tr><td style="padding:10px 0;font-weight:600;color:#1a1a1a;width:120px;border-bottom:1px solid #ddd;">Zeitfenster</td><td style="padding:10px 0;border-bottom:1px solid #ddd;">${zeitfenster}</td></tr>
+            ${ort ? `<tr><td style="padding:10px 0;font-weight:600;color:#1a1a1a;width:120px;">Standort</td><td style="padding:10px 0;">${ort}</td></tr>` : ''}
+          </table>
+        </div>
+        <p style="margin:0 0 14px;">Im Anhang finden Sie einen Kalendereintrag für Ihren Kalender, falls Sie diesen hinzufügen möchten.</p>
+        <p style="margin:0 0 14px;">Bitte stellen Sie sicher, dass der Zugang zu den Anlagenbestandteilen am Servicetag gewährleistet ist. Sollte dies gewährleistet sein, müssen Sie nicht anwesend sein.</p>
+        <p style="margin:0 0 24px;">Bei Fragen erreichen Sie uns unter <a href="tel:+41713523822" style="color:#1a1a1a;font-weight:600;">071 352 38 22</a> oder per Mail an <a href="mailto:info@wksweber.ch" style="color:#1a1a1a;font-weight:600;">info@wksweber.ch</a>.</p>
+        <div style="border-top:1px solid #e0e0e0;padding-top:16px;color:#666;font-size:14px;">
+          <p style="margin:0;">Freundliche Grüsse</p>
+          <p style="margin:4px 0 0;font-weight:700;color:#1a1a1a;">WKS Weber GmbH</p>
+          <p style="margin:2px 0 0;font-size:13px;">Kläranlagen – Wartung und Service</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const ics = icsKalendereintrag(terminDatum, zeitVon, zeitBis, kundenName, ort);
+
+  try {
+    const betreff = kdnr
+      ? `[TEST] Service-Termin Ihrer Abwasseranlage – ${terminDatum}`
+      : `[TEST] Service-Termin Ihrer Abwasseranlage – 15.03.2027`;
+    const result = await sendBrevoMail({ an: testMail, betreff, htmlBody, icsContent: ics });
+    res.json({ ok: true, an: testMail, kunde: kundenName, messageId: result.messageId || null });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 });
 
-app.get("/", seiteSchuetzen, (_req, res) => res.type("html").send(DASHBOARD));
+// ---- Avisierung ----
+app.get('/api/avisierung', requireAuth, (req, res) => {
+  const heute = new Date();
+  heute.setHours(0, 0, 0, 0);
+  const TAG = 24 * 60 * 60 * 1000;
 
-/* ------------------------------- Seiten ---------------------------- */
-
-const STIL = `
-  :root{
-    --grund:#101314; --karte:#171b1c; --linie:#252b2c;
-    --text:#e8ece9; --leise:#7d8a86; --signal:#c9f24d; --warn:#ff8b52;
+  function parseDat(v) {
+    const m = String(v).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    if (!m) return null;
+    return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
   }
-  *{box-sizing:border-box}
-  body{
-    margin:0; min-height:100dvh; background:var(--grund); color:var(--text);
-    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-    letter-spacing:.02em; padding:20px;
-  }
-  input{
-    width:100%; padding:11px 12px; background:#0b0e0f; color:var(--text);
-    border:1px solid var(--linie); border-radius:2px; font:inherit; font-size:15px;
-  }
-  input:focus-visible{outline:none; border-color:var(--signal)}
-  button{
-    background:none; border:1px solid var(--linie); color:var(--leise);
-    font:inherit; font-size:11px; text-transform:uppercase; letter-spacing:.08em;
-    padding:8px 14px; border-radius:2px; cursor:pointer;
-  }
-  button:hover,button:focus-visible{color:var(--text); border-color:var(--leise)}
-  .label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--leise)}
-  .fehler{color:var(--warn); font-size:12px}
-`;
 
-function loginSeite(fehler) {
-  return `<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Anmelden · Versandübergabe</title>
-<style>${STIL}
-  body{display:flex; align-items:center; justify-content:center}
-  form{width:100%; max-width:330px; display:flex; flex-direction:column; gap:14px}
-  h1{font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--leise); margin:0 0 6px}
-  .feld{display:flex; flex-direction:column; gap:6px}
-  form button{align-self:flex-start; margin-top:4px}
-</style>
-</head>
-<body>
-  <form method="post" action="/login">
-    <h1>Versandübergabe</h1>
-    ${fehler ? '<p class="fehler">Benutzername oder Passwort stimmt nicht.</p>' : ""}
-    <div class="feld">
-      <label class="label" for="benutzer">Benutzername</label>
-      <input id="benutzer" name="benutzer" autocomplete="username" autocapitalize="none" required>
-    </div>
-    <div class="feld">
-      <label class="label" for="passwort">Passwort</label>
-      <input id="passwort" name="passwort" type="password" autocomplete="current-password" required>
-    </div>
-    <button type="submit">Anmelden</button>
-  </form>
-</body>
-</html>`;
-}
+  function zeitFenster(zeit) {
+    if (!zeit) return null;
+    const digits = String(zeit).replace(/\D/g, '').padStart(4, '0');
+    const hh = parseInt(digits.slice(0, 2), 10);
+    const mm = parseInt(digits.slice(2, 4), 10);
+    const total = hh * 60 + mm;
 
-const DASHBOARD = `<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Versandübergabe</title>
-<style>${STIL}
-  body{display:flex; flex-direction:column; justify-content:center; gap:14px}
-  header{display:flex; justify-content:space-between; align-items:baseline;
-    text-transform:uppercase; font-size:11px; letter-spacing:.08em; color:var(--leise)}
-  .karte{background:var(--karte); border:1px solid var(--linie); border-radius:2px;
-    padding:16px 20px 14px; position:relative; overflow:hidden}
-  .karte::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--signal)}
-  .karte.zwei::before{background:var(--leise)}
-  .karte.drei::before{background:var(--signal)}
-  .karte.drei .zahl{color:var(--signal)}
-  .karte.total{padding:24px 20px 20px}
-  .karte.total::before{background:var(--warn)}
-  .karte.total .zahl{color:var(--warn)}
-  .karte.total .zahl{font-size:clamp(64px,22vw,120px); line-height:.86; margin-top:4px}
-  .karte .label{margin-bottom:10px}
-  .zahl{font-size:clamp(30px,9vw,46px); line-height:.9; font-weight:600; font-variant-numeric:tabular-nums}
-  .zusatz{margin-top:10px; font-size:12px; color:var(--leise)}
-  footer{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:11px; color:var(--leise)}
-  footer form{margin:0}
-  [aria-busy="true"] .zahl{opacity:.35}
-</style>
-</head>
-<body>
-  <header><span>Versandübergabe</span><span id="stand">–</span></header>
-
-  <div class="karte" aria-busy="true">
-    <div class="label">Sendungen versandbereit</div>
-    <div class="zahl" id="w1">–</div>
-    <div class="zusatz">Im Versandzentrum</div>
-  </div>
-
-  <div class="karte zwei" aria-busy="true">
-    <div class="label">Sendungen vorbereitet</div>
-    <div class="zahl" id="w2">–</div>
-    <div class="zusatz">Noch nicht im Versandzentrum</div>
-  </div>
-
-  <div class="karte total" aria-busy="true">
-    <div class="label">Zu versendende Aufträge</div>
-    <div class="zahl" id="wt">–</div>
-  </div>
-
-  <div class="karte drei" aria-busy="true">
-    <div class="label">Heute verschickt</div>
-    <div class="zahl" id="w3">–</div>
-    <div class="zusatz" id="w3zusatz">Schweizerische Post</div>
-  </div>
-
-  <footer>
-    <span id="meldung"></span>
-    <span>
-      <button id="neu">Neu laden</button>
-      <form method="post" action="/logout" style="display:inline">
-        <button type="submit">Abmelden</button>
-      </form>
-    </span>
-  </footer>
-
-<script>
-const zahl = new Intl.NumberFormat("de-CH");
-const uhr = new Intl.DateTimeFormat("de-CH",{hour:"2-digit",minute:"2-digit"});
-
-async function laden(force){
-  document.querySelectorAll(".karte").forEach(k => k.setAttribute("aria-busy","true"));
-  try{
-    const r = await fetch("/api/kpi" + (force ? "?force=1" : ""));
-    if(r.status === 401){ location.href = "/login"; return; }
-    const d = await r.json();
-    if(!r.ok) throw new Error(d.fehler || "Abruf fehlgeschlagen");
-    w1.textContent = d.offeneLieferscheine === null ? "n/v" : zahl.format(d.offeneLieferscheine);
-    w2.textContent = d.offeneAuftraege === null ? "n/v" : zahl.format(d.offeneAuftraege);
-    const post = typeof d.sendungenHeute === "number" ? d.sendungenHeute : null;
-
-    // Wochenende: erstellte Labels sind noch nicht raus -> sie zaehlen zu den
-    // offenen Auftraegen, die Kachel "Heute verschickt" bleibt leer.
-    if (d.postAlsOffen) {
-      w3.textContent = "–";
-      w3zusatz.textContent = "Wochenende – in Summe oben enthalten";
-    } else {
-      w3.textContent = post === null ? "n/v" : zahl.format(post);
-      w3zusatz.textContent = d.inklWochenende
-        ? "Inkl. Sa/So \u00b7 Erstellte Versandlabels"
-        : "Erstellte Versandlabels";
+    function fmt(min) {
+      return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
     }
 
-    const basis = [d.offeneLieferscheine, d.offeneAuftraege];
-    const total = basis.every(v => typeof v === "number")
-      ? basis[0] + basis[1] + (d.postAlsOffen ? (post || 0) : 0)
-      : null;
-    wt.textContent = total === null ? "n/v" : zahl.format(total);
-    stand.textContent = "Stand " + uhr.format(new Date(d.stand));
-    meldung.textContent = [d.quelle, d.hinweis, d.cached ? "aus Cache" : ""].filter(Boolean).join(" \u00b7 ");
-    meldung.className = "";
-  }catch(e){
-    meldung.textContent = e.message;
-    meldung.className = "fehler";
-  }finally{
-    document.querySelectorAll(".karte").forEach(k => k.setAttribute("aria-busy","false"));
+    let vonMin, bisMin;
+    if (total < 7 * 60 + 30) {
+      vonMin = total; bisMin = 7 * 60 + 30;
+    } else if (total === 7 * 60 + 30) {
+      vonMin = 7 * 60 + 30; bisMin = 8 * 60;
+    } else if (total <= 8 * 60 + 30) {
+      vonMin = 7 * 60 + 45; bisMin = 10 * 60;
+    } else if (total <= 10 * 60) {
+      // ±1h, min 08:00
+      vonMin = Math.max(8 * 60, Math.floor((total - 60) / 30) * 30);
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+    } else if (total <= 11 * 60 + 29) {
+      // 10:01–11:29 → ±1h, wenn Ende >= 12:00 dann bis 13:00
+      vonMin = Math.floor((total - 60) / 30) * 30;
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+      if (bisMin >= 12 * 60) bisMin = 13 * 60;
+    } else if (total <= 13 * 60) {
+      // 11:30–13:00 → fix
+      vonMin = 10 * 60 + 30; bisMin = 14 * 60;
+    } else if (total <= 15 * 60) {
+      // 13:01–15:00 → ±1h gerundet auf 30min
+      vonMin = Math.floor((total - 60) / 30) * 30;
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+    } else if (total <= 17 * 60) {
+      // 15:01–17:00 → ±1h gerundet auf 30min
+      vonMin = Math.floor((total - 60) / 30) * 30;
+      bisMin = Math.ceil((total + 60) / 30) * 30;
+    } else if (total <= 17 * 60 + 30) {
+      vonMin = 15 * 60; bisMin = 17 * 60 + 45;
+    } else {
+      vonMin = 16 * 60; bisMin = 18 * 60 + 30;
+    }
+
+    // Mittagsregel: Zeitfenster darf nie zwischen 12:00 und 12:45 anfangen oder aufhören
+    if (vonMin >= 12 * 60 && vonMin < 12 * 60 + 45) vonMin = 13 * 60;
+    if (bisMin >= 12 * 60 && bisMin < 12 * 60 + 45) bisMin = 13 * 60;
+
+    return `${fmt(vonMin)} – ${fmt(bisMin)} Uhr`;
+  }
+
+  const eintraege = [];
+  kunden.forEach((k) => {
+    const mail = k.kontakte && k.kontakte.avisierung && k.kontakte.avisierung.mail;
+    if (!mail || !mail.trim() || !mail.includes('@')) return;
+
+    (k.termine || []).forEach((t) => {
+      if (!t.datum || t.storniert) return;
+      const terminDatum = parseDat(t.datum);
+      if (!terminDatum) return;
+      // Nur zukünftige Termine
+      if (terminDatum.getTime() < heute.getTime()) return;
+
+      const avisierungsDatum = new Date(terminDatum.getTime() - 14 * TAG);
+      const tageVorTermin = Math.round((terminDatum.getTime() - heute.getTime()) / TAG);
+      const tageBisAvisierung = Math.round((avisierungsDatum.getTime() - heute.getTime()) / TAG);
+
+      eintraege.push({
+        kdnr: k.kdnr,
+        kdnrName: k.kdnrName,
+        mail: mail.trim(),
+        terminDatum: t.datum,
+        terminZeit: t.zeit || null,
+        zeitfenster: zeitFenster(t.zeit),
+        halbjahr: t.halbjahr,
+        avisierungsDatum: `${String(avisierungsDatum.getDate()).padStart(2, '0')}.${String(avisierungsDatum.getMonth() + 1).padStart(2, '0')}.${avisierungsDatum.getFullYear()}`,
+        tageVorTermin,
+        tageBisAvisierung,
+        fahrer: k.planung ? k.planung.fahrer : null,
+        ort: k.anlage ? k.anlage.ort : null,
+      });
+    });
+  });
+
+  // Sortiert nach Avisierungsdatum (nächste zuerst)
+  eintraege.sort((a, b) => a.tageBisAvisierung - b.tageBisAvisierung);
+
+  res.json({ eintraege, total: eintraege.length });
+});
+
+app.get('/api/schieber', requireAuth, (req, res) => {
+  try {
+    const p = path.join(__dirname, 'data', 'schieber.json');
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'schieber.json nicht gefunden.' });
+  }
+});
+
+app.get('/api/grenzwerte', requireAuth, (req, res) => {
+  try {
+    const p = path.join(__dirname, 'data', 'grenzwerte.json');
+    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'grenzwerte.json nicht gefunden.' });
+  }
+});
+
+// ---- Shopify Lagerbestände ----
+// ---- Shopify OAuth (einmalig durchlaufen, um den permanenten Access Token zu erhalten) ----
+app.get('/shopify/auth', requireAuth, (req, res) => {
+  if (!SHOPIFY_CLIENT_ID) return res.send('SHOPIFY_CLIENT_ID nicht gesetzt.');
+  const redirectUri = `https://${req.get('host')}/shopify/callback`;
+  const url = `https://${SHOPIFY_STORE}/admin/oauth/authorize?client_id=${SHOPIFY_CLIENT_ID}&scope=read_products,read_inventory&redirect_uri=${encodeURIComponent(redirectUri)}`;
+  res.redirect(url);
+});
+
+app.get('/shopify/callback', async (req, res) => {
+  const { code, error, error_description } = req.query;
+  if (error) return res.send(`Shopify-Fehler: ${error} – ${error_description || ''}`);
+  if (!code) return res.send(`Fehler: kein Code erhalten. Query: ${JSON.stringify(req.query)}`);
+  try {
+    const r = await fetch(`https://${SHOPIFY_STORE}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: SHOPIFY_CLIENT_ID,
+        client_secret: SHOPIFY_CLIENT_SECRET,
+        code,
+      }),
+    });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { return res.send(`Shopify-Antwort (${r.status}): ${text.slice(0,500)}`); }
+    if (data.access_token) {
+      res.send(`<h2>Shopify Access Token erhalten!</h2>
+        <p>Trage diesen bei Render als <b>SHOPIFY_ACCESS_TOKEN</b> ein:</p>
+        <pre style="background:#f0f0f0;padding:16px;font-size:18px;word-break:break-all;">${data.access_token}</pre>
+        <p>Danach Render neu deployen. Dieser Schritt muss nur einmal gemacht werden.</p>`);
+    } else {
+      res.send(`Shopify-Antwort (${r.status}): ${JSON.stringify(data)}`);
+    }
+  } catch (err) {
+    res.send(`Fehler: ${err.message}`);
+  }
+});
+
+// ---- Shopify GraphQL API ----
+let shopifyAccessToken = null;
+
+function getShopifyToken() {
+  return SHOPIFY_ACCESS_TOKEN;
+}
+
+async function shopifyGraphQL(query) {
+  const token = getShopifyToken();
+  const r = await fetch(`https://${SHOPIFY_STORE}/admin/api/2026-07/graphql.json`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': token,
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!r.ok) {
+    const body = await r.text().catch(() => '');
+    throw new Error(`Shopify ${r.status}: ${body.slice(0, 300)}`);
+  }
+  return r.json();
+}
+
+app.get('/api/lager', requireAuth, async (req, res) => {
+  if (!SHOPIFY_ACCESS_TOKEN) {
+    return res.status(400).json({ error: 'SHOPIFY_ACCESS_TOKEN ist nicht gesetzt. Bitte zuerst /shopify/auth aufrufen.' });
+  }
+
+  try {
+    const alleArtikel = [];
+    let cursor = null;
+    let weiter = true;
+
+    while (weiter) {
+      const afterClause = cursor ? `, after: "${cursor}"` : '';
+      const query = `{
+        products(first: 250${afterClause}) {
+          pageInfo { hasNextPage }
+          edges {
+            cursor
+            node {
+              title
+              variants(first: 50) {
+                edges {
+                  node {
+                    sku
+                    inventoryQuantity
+                    displayName
+                    price
+                  }
+                }
+              }
+            }
+          }
+        }
+      }`;
+
+      const data = await shopifyGraphQL(query);
+
+      if (data.errors) {
+        throw new Error(data.errors.map((e) => e.message).join('; '));
+      }
+
+      const edges = data.data.products.edges || [];
+      edges.forEach((edge) => {
+        const prod = edge.node;
+        const variants = (prod.variants.edges || []).map((ve) => ve.node);
+
+        if (variants.length === 1) {
+          const v = variants[0];
+          const sku = v.sku || '';
+          if (sku.toLowerCase().includes('container')) return;
+          alleArtikel.push({
+            name: prod.title,
+            nummer: sku,
+            bestand: v.inventoryQuantity ?? 0,
+            preis: v.price || null,
+          });
+        } else {
+          // Mehrere Varianten: jede einzeln auflisten
+          variants.forEach((v) => {
+            const sku = v.sku || '';
+            if (sku.toLowerCase().includes('container')) return;
+            alleArtikel.push({
+              name: v.displayName || prod.title,
+              nummer: sku,
+              bestand: v.inventoryQuantity ?? 0,
+              preis: v.price || null,
+            });
+          });
+        }
+      });
+
+      if (data.data.products.pageInfo.hasNextPage && edges.length) {
+        cursor = edges[edges.length - 1].cursor;
+      } else {
+        weiter = false;
+      }
+    }
+
+    alleArtikel.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+
+    res.json({ artikel: alleArtikel, anzahl: alleArtikel.length });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Debug-Endpoint: zeigt die Rohdaten eines Shopify-Produkts
+app.get('/api/lager/debug', requireAuth, async (req, res) => {
+  if (!SHOPIFY_ACCESS_TOKEN) {
+    return res.status(400).json({ error: 'SHOPIFY_ACCESS_TOKEN ist nicht gesetzt.' });
+  }
+  try {
+    const query = `{
+      products(first: 3) {
+        edges {
+          node {
+            title
+            productType
+            vendor
+            tags
+            variants(first: 5) {
+              edges {
+                node {
+                  sku
+                  inventoryQuantity
+                  displayName
+                  title
+                }
+              }
+            }
+          }
+        }
+      }
+    }`;
+    const data = await shopifyGraphQL(query);
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ---- Analysedaten-Upload (Jahresarchivierung) ----
+function parseAnalyseUpload(filePath) {
+  const wb = XLSX.readFile(filePath, { cellDates: true });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+  // Header-Zeile finden (sucht nach 'KdNr')
+  function norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+  let headerRow = -1, kdnrIdx = -1, datSIdx = -1, startIdx = 0;
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const zeile = rows[r] || [];
+    const ki = zeile.findIndex(v => norm(v) === 'kdnr');
+    if (ki !== -1) { headerRow = r; kdnrIdx = ki; break; }
+  }
+  if (headerRow === -1) {
+    // Ohne Header: KdNr in Spalte A, Dat_S in Spalte L
+    kdnrIdx = 0; datSIdx = 11; startIdx = 0;
+  } else {
+    startIdx = headerRow + 1;
+    const hz = rows[headerRow];
+    const di = hz.findIndex(v => norm(v) === 'dat_s' || norm(v) === 'datum service');
+    datSIdx = di !== -1 ? di : kdnrIdx + 14;
+  }
+
+  // Geruch-Block-Offset bestimmen
+  let geruchOffset = 0;
+  if (headerRow >= 0) {
+    const hz = rows[headerRow];
+    const gi = hz.findIndex((v, i) => i > datSIdx && norm(v) === 'kein');
+    geruchOffset = (gi !== -1 ? gi : 20) - 20;
+  } else {
+    geruchOffset = 13 - 20;
+  }
+
+  function col(letter) {
+    let n = 0;
+    for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
+    const ref = n - 1;
+    if (letter === 'D') return kdnrIdx;
+    if (letter === 'S') return datSIdx;
+    return ref + geruchOffset;
+  }
+
+  function clean(v) {
+    if (v === null || v === undefined) return null;
+    const s = String(v).trim();
+    if (!s || s.toLowerCase() === 'nan' || s.toLowerCase() === 'nat') return null;
+    return s;
+  }
+  function istX(v) { return v !== null && v !== undefined && String(v).trim().toLowerCase() === 'x'; }
+  function fmtDate(v) {
+    if (!(v instanceof Date) || isNaN(v.getTime())) return null;
+    if (v.getFullYear() < 1950) return null;
+    return `${String(v.getDate()).padStart(2,'0')}.${String(v.getMonth()+1).padStart(2,'0')}.${v.getFullYear()}`;
+  }
+  function cbGroup(row, wortSpalten, beschriebSpalte, trenner) {
+    const w = [];
+    wortSpalten.forEach(([sp, wort]) => { if (istX(row[col(sp)])) w.push(wort); });
+    let text = w.join(trenner);
+    const b = beschriebSpalte ? clean(row[col(beschriebSpalte)]) : null;
+    if (b) text = text ? `${text} (${b})` : b;
+    return text || null;
+  }
+
+  const eintraege = [];
+  for (let i = startIdx; i < rows.length; i++) {
+    const row = rows[i]; if (!row) continue;
+    const kdnr = clean(row[kdnrIdx]); if (!kdnr) continue;
+    const datum = fmtDate(row[datSIdx]); if (!datum) continue;
+
+    const geruch = cbGroup(row, [['U','kein'],['V','leicht'],['W','stark'],['X','faulig'],['Y','erdig'],['Z','andere']], 'AA', ' ');
+    const farbe = cbGroup(row, [['AB','klar'],['AC','trüb'],['AD','gelblich'],['AE','bräunlich'],['AF','gräulich'],['AG','andere']], 'AH', ' / ');
+    const schlammAblauf = cbGroup(row, [['AI','kein'],['AJ','wenig'],['AK','viel']], null, ' ');
+    const hbJa = istX(row[col('BC')]); const hbNein = istX(row[col('BD')]);
+    let handlungsbedarf = null;
+    if (hbJa) handlungsbedarf = 'Ja'; else if (hbNein) handlungsbedarf = 'Nein';
+
+    const IMMER = [['AL','pH'],['AM','O2 A'],['AN','Temp A'],['AO','DS'],['AV','Amm.'],['AX','CSB']];
+    const OPT = [['AP','Bewuchs'],['AQ','Schlammfarbe'],['AR','O2 BB'],['AS','Temp'],['AT','BB'],['AU','NB'],
+      ['AW','Ab.Vol.'],['AY','Stunden'],['AZ','Nitrit'],['BA','Absaugen'],['BB','Monteur'],
+      ['BK','Betriebsjournal'],['BL','Phosphat'],['BM','GUS'],['BN','Wetter'],['BO','DOC']];
+    const BEM = [['BE','Bemerkungen'],['BF','Bem. AWEL'],['BG','Vermerk WKS'],['BH','Ersatzteile'],['BI','Nächster Service'],['BJ','Büro Information']];
+
+    eintraege.push({
+      kdnr: String(kdnr).replace(/\.0$/, ''),
+      datum,
+      geruch, farbe, schlammAblauf, handlungsbedarf,
+      messwerteImmer: IMMER.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) ?? 'k.A.' })),
+      messwerteOptional: OPT.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert !== null),
+      bemerkungen: BEM.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert !== null),
+    });
+  }
+  return eintraege;
+}
+
+// ---- Verrechnung (Excel-Export für den Rechnungslauf) ----
+// Regeln:
+//  - Kunden mit 1 Service/Jahr: immer aufführen, mit aktueller Wartungsgebühr
+//    (+ Ersatzteile, falls im Analyseblatt notiert)
+//  - Kunden mit 2+ Services/Jahr: nur aufführen, wenn Ersatzteile notiert sind
+//    (Wartungsgebühr wurde anfangs Jahr bereits fakturiert)
+const VERRECHNUNG_STATE = path.join(__dirname, 'data', 'verrechnung-state.json');
+
+function ladeVerrechnungState() {
+  try {
+    return JSON.parse(fs.readFileSync(VERRECHNUNG_STATE, 'utf-8'));
+  } catch (e) {
+    return { letzterDownload: null, letzterBereich: null };
   }
 }
 
-neu.addEventListener("click", () => laden(true));
-laden(false);
-setInterval(() => laden(false), 300000);
-</script>
-</body>
-</html>`;
+function speichereVerrechnungState(state) {
+  try {
+    fs.writeFileSync(VERRECHNUNG_STATE, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Verrechnungs-State konnte nicht gespeichert werden:', e.message);
+  }
+}
 
-app.listen(PORT, () => console.log(`Versand-KPI läuft auf Port ${PORT}`));
+function parseDatDE(v) {
+  const m = String(v || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return null;
+  return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+}
+
+function sortKeyDatum(d) {
+  const m = String(d || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) return '00000000';
+  return m[3] + m[2].padStart(2, '0') + m[1].padStart(2, '0');
+}
+
+// Zeit normalisieren: '0715' / '7:15' / Excel-Bruchteil 0.302083 -> '07:15'
+function normZeit(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const s = String(v).trim();
+  if (!s) return '';
+  if (/^\d+([.,]\d+)?$/.test(s) && s.includes('.') && Number(s) < 1) {
+    const min = Math.round(Number(s) * 24 * 60);
+    return `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+  }
+  const m1 = s.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (m1) return `${m1[1].padStart(2, '0')}:${m1[2]}`;
+  const m2 = s.match(/^(\d{3,4})$/);
+  if (m2) {
+    const t = m2[1].padStart(4, '0');
+    return `${t.slice(0, 2)}:${t.slice(2)}`;
+  }
+  return s;
+}
+
+// Uhrzeit zu einem Servicedatum suchen: zuerst Termine, dann Planung
+function zeitZuDatum(kunde, datum) {
+  const t = (kunde.termine || []).find(x => x.datum === datum);
+  if (t && t.zeit) return normZeit(t.zeit);
+  const p = kunde.planung || {};
+  if (p.datS === datum && p.zeitS) return normZeit(p.zeitS);
+  if (p.dat226 === datum && p.zeit226) return normZeit(p.zeit226);
+  return '';
+}
+
+// Anzahl Services pro Jahr aus den Stammdaten ('1', '1A', '1A-H', '2', '2A', ...)
+function anzahlService(kunde) {
+  const roh = String((kunde.anlage && kunde.anlage.anzahlService) || '').trim();
+  const m = roh.match(/^(\d)/);
+  return m ? Number(m[1]) : null;
+}
+
+function ersatzteileVon(analyse) {
+  let text = '';
+  (analyse.bemerkungen || []).forEach(b => {
+    if (b.label === 'Ersatzteile' && b.wert) text = String(b.wert).trim();
+  });
+  return text;
+}
+
+function baueVerrechnungsZeilen(von, bis) {
+  const vonD = parseDatDE(von);
+  const bisD = parseDatDE(bis);
+  const zeilen = [];        // zu verrechnen
+  const bereits = [];       // 2+ Services: Wartungsgebühr anfangs Jahr bereits fakturiert
+
+  kunden.forEach(k => {
+    if (!k.kdnr) return;
+    const anz = anzahlService(k);
+    const einService = anz === 1;
+
+    (k.analysedaten || []).forEach(ad => {
+      const d = parseDatDE(ad.datum);
+      if (!d) return;
+      if (vonD && d < vonD) return;
+      if (bisD && d > bisD) return;
+
+      const ersatzteile = ersatzteileVon(ad);
+      const basis = {
+        kdnr: k.kdnr,
+        datum: ad.datum,
+        zeit: zeitZuDatum(k, ad.datum),
+        kunde: k.kdnrName || String(k.kdnr),
+        ersatzteile,
+        anzahlService: anz,
+      };
+
+      if (einService) {
+        zeilen.push({ ...basis, gebuehr: k.aktuelleGebuehr || null });
+      } else {
+        // Bereits fakturiert – nur bei Ersatzteilen im Hauptblatt nachverrechnen
+        bereits.push({ ...basis, gebuehr: k.aktuelleGebuehr || null });
+        if (ersatzteile) zeilen.push({ ...basis, gebuehr: null });
+      }
+    });
+  });
+
+  const sortieren = (a, b) => {
+    const t = sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum));
+    if (t !== 0) return t;
+    return (a.zeit || '99:99').localeCompare(b.zeit || '99:99');
+  };
+  zeilen.sort(sortieren);
+  bereits.sort(sortieren);
+
+  return { zeilen, bereits };
+}
+
+// Letzter Download + Vorschlagswerte für den Datumsfilter
+app.get('/api/verrechnung/meta', requireAuth, (req, res) => {
+  const state = ladeVerrechnungState();
+  const heute = new Date();
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let vonVorschlag;
+  if (state.letzterDownload) {
+    vonVorschlag = state.letzterDownload.slice(0, 10);
+  } else {
+    vonVorschlag = `${heute.getFullYear()}-01-01`;
+  }
+  res.json({
+    letzterDownload: state.letzterDownload,
+    letzterBereich: state.letzterBereich,
+    vonVorschlag,
+    bisVorschlag: iso(heute),
+  });
+});
+
+app.get('/api/verrechnung', requireAuth, async (req, res) => {
+  const von = req.query.von || '01.01.2000';
+  const bis = req.query.bis || '31.12.2099';
+  const { zeilen, bereits } = baueVerrechnungsZeilen(von, bis);
+
+  if (req.query.format !== 'xlsx') {
+    return res.json({ zeilen, bereits, total: zeilen.length, totalBereits: bereits.length });
+  }
+
+  function zahl(v) {
+    if (v === null || v === undefined || String(v).trim() === '') return null;
+    const n = Number(String(v).replace(/[^\d.,-]/g, '').replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+
+  function kopfzeileFormatieren(ws) {
+    const kopf = ws.getRow(1);
+    kopf.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    kopf.alignment = { vertical: 'middle' };
+    kopf.height = 20;
+    kopf.eachCell(c => {
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A1A' } };
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+  }
+
+  const wb = new ExcelJS.Workbook();
+
+  // ---------- Blatt 1: Zu verrechnen ----------
+  const ws = wb.addWorksheet('Zu verrechnen');
+  ws.columns = [
+    { header: 'Datum', key: 'datum', width: 12 },
+    { header: 'Zeit', key: 'zeit', width: 8 },
+    { header: 'Kunde', key: 'kunde', width: 40 },
+    { header: 'Servicegebühr', key: 'gebuehr', width: 14 },
+    { header: 'Ersatzteile', key: 'ersatzteile', width: 55 },
+  ];
+  kopfzeileFormatieren(ws);
+
+  let aktuellesDatum = null;
+  let summeGebuehren = 0;
+  let anzahlMitGebuehr = 0;
+  let anzahlErsatzteile = 0;
+  const kundenNummern = new Set();
+
+  zeilen.forEach(z => {
+    if (aktuellesDatum !== null && z.datum !== aktuellesDatum) ws.addRow([]);
+    aktuellesDatum = z.datum;
+
+    kundenNummern.add(z.kdnr);
+    const g = zahl(z.gebuehr);
+    if (g !== null) { summeGebuehren += g; anzahlMitGebuehr++; }
+
+    const row = ws.addRow({
+      datum: z.datum,
+      zeit: z.zeit,
+      kunde: z.kunde,
+      gebuehr: g !== null ? g : '',
+      ersatzteile: z.ersatzteile || '',
+    });
+    row.getCell('gebuehr').numFmt = '#,##0.00';
+    row.getCell('ersatzteile').alignment = { wrapText: true, vertical: 'top' };
+
+    if (z.ersatzteile) {
+      anzahlErsatzteile++;
+      ['datum', 'zeit', 'kunde', 'gebuehr', 'ersatzteile'].forEach(key => {
+        row.getCell(key).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2B2' } };
+      });
+      const c = row.getCell('ersatzteile');
+      c.font = { bold: true };
+      c.border = {
+        top: { style: 'thin', color: { argb: 'FFD9A400' } },
+        left: { style: 'thin', color: { argb: 'FFD9A400' } },
+        bottom: { style: 'thin', color: { argb: 'FFD9A400' } },
+        right: { style: 'thin', color: { argb: 'FFD9A400' } },
+      };
+    }
+  });
+
+  ws.addRow([]);
+  const schnitt = anzahlMitGebuehr > 0 ? summeGebuehren / anzahlMitGebuehr : 0;
+  const zusammenfassung = [
+    ['Anzahl Services (Zeilen)', zeilen.length],
+    ['Anzahl verschiedene Kundennummern', kundenNummern.size],
+    ['davon mit Servicegebühr', anzahlMitGebuehr],
+    ['davon mit Ersatzteilen', anzahlErsatzteile],
+    ['Total Servicegebühren', summeGebuehren],
+    ['Schnitt pro verrechnetem Service', schnitt],
+  ];
+  zusammenfassung.forEach(([label, wert], i) => {
+    const r = ws.addRow({ kunde: label, gebuehr: wert });
+    r.font = { bold: true };
+    if (i >= 4) r.getCell('gebuehr').numFmt = '#,##0.00';
+    r.getCell('kunde').alignment = { horizontal: 'right' };
+  });
+
+  // ---------- Blatt 2: Bereits verrechnet ----------
+  const ws2 = wb.addWorksheet('Bereits verrechnet');
+  ws2.columns = [
+    { header: 'Datum', key: 'datum', width: 12 },
+    { header: 'Zeit', key: 'zeit', width: 8 },
+    { header: 'Kunde', key: 'kunde', width: 40 },
+    { header: 'Wartungsgebühr (Jahr)', key: 'gebuehr', width: 18 },
+  ];
+  kopfzeileFormatieren(ws2);
+
+  let datum2 = null;
+  const kunden2 = new Map(); // kdnr -> Jahresgebühr (nur einmal zählen)
+
+  bereits.forEach(z => {
+    if (datum2 !== null && z.datum !== datum2) ws2.addRow([]);
+    datum2 = z.datum;
+
+    const g = zahl(z.gebuehr);
+    if (!kunden2.has(z.kdnr)) kunden2.set(z.kdnr, g);
+
+    const row = ws2.addRow({
+      datum: z.datum,
+      zeit: z.zeit,
+      kunde: z.kunde,
+      gebuehr: g !== null ? g : '',
+    });
+    row.getCell('gebuehr').numFmt = '#,##0.00';
+  });
+
+  let summe2 = 0;
+  kunden2.forEach(v => { if (v !== null) summe2 += v; });
+
+  ws2.addRow([]);
+  const schnitt2 = kunden2.size > 0 ? summe2 / kunden2.size : 0;
+  [
+    ['Anzahl Services (Zeilen)', bereits.length],
+    ['Anzahl verschiedene Kundennummern', kunden2.size],
+    ['Total Wartungsgebühren (pro Kunde 1x)', summe2],
+    ['Schnitt pro Kunde', schnitt2],
+  ].forEach(([label, wert], i) => {
+    const r = ws2.addRow({ kunde: label, gebuehr: wert });
+    r.font = { bold: true };
+    if (i >= 2) r.getCell('gebuehr').numFmt = '#,##0.00';
+    r.getCell('kunde').alignment = { horizontal: 'right' };
+  });
+
+  const hinweis = ws2.addRow({ kunde: 'Hinweis: Diese Gebühren wurden anfangs Jahr bereits fakturiert. Pro Kunde wird die Jahresgebühr nur einmal gezählt, auch wenn beide Services im Zeitraum liegen. Allfällige Ersatzteile stehen auf Blatt 1.' });
+  hinweis.getCell('kunde').alignment = { horizontal: 'right', wrapText: true };
+  hinweis.getCell('kunde').font = { italic: true, size: 10 };
+
+  const buf = await wb.xlsx.writeBuffer();
+
+  // Download-Zeitpunkt merken (Basis für den nächsten Vorschlag "Von")
+  const jetzt = new Date();
+  speichereVerrechnungState({
+    letzterDownload: jetzt.toISOString(),
+    letzterBereich: { von, bis },
+  });
+
+  res.setHeader('Content-Disposition', `attachment; filename=WKS_Verrechnung_${von.replace(/\./g, '')}_${bis.replace(/\./g, '')}.xlsx`);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  return res.send(Buffer.from(buf));
+});
+
+// ---- Daten-Import (Analysedaten-Upload + Archivierung) ----
+app.post('/api/import/analysedaten', requireAuth, upload.single('datei'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+
+  try {
+    const wb = XLSX.read(req.file.buffer, { cellDates: true });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+
+    // Layout erkennen (Header-Zeile per Namenssuche)
+    function norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+    let headerRowIndex = -1, kdnrIdx = -1, datSIdx = -1, geruchOffset = 0;
+
+    for (let r = 0; r < Math.min(rows.length, 10); r++) {
+      const zeile = rows[r] || [];
+      const ki = zeile.findIndex(v => norm(v) === 'kdnr');
+      if (ki !== -1) { headerRowIndex = r; kdnrIdx = ki; break; }
+    }
+
+    if (headerRowIndex >= 0) {
+      const hz = rows[headerRowIndex];
+      const di = hz.findIndex(v => norm(v) === 'dat_s');
+      datSIdx = di >= 0 ? di : kdnrIdx + 15;
+      const gi = hz.findIndex((v, i) => i > datSIdx && norm(v) === 'kein');
+      geruchOffset = (gi >= 0 ? gi : 20) - 20;
+    } else {
+      // Ohne Header
+      headerRowIndex = -1; kdnrIdx = 0; datSIdx = 11; geruchOffset = 13 - 20;
+    }
+    const startIdx = headerRowIndex + 1;
+
+    function col(letter) {
+      if (letter === 'D') return kdnrIdx;
+      if (letter === 'S') return datSIdx;
+      let n = 0;
+      for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
+      return n - 1 + geruchOffset;
+    }
+
+    function clean(v) {
+      if (v === null || v === undefined) return null;
+      const s = String(v).trim();
+      if (!s || s.toLowerCase() === 'nan' || s.toLowerCase() === 'nat') return null;
+      return s;
+    }
+
+    function istX(v) { return v !== null && v !== undefined && String(v).trim().toLowerCase() === 'x'; }
+
+    function fmtDatum(v) {
+      if (!(v instanceof Date) || isNaN(v.getTime())) return null;
+      if (v.getFullYear() < 1950) return null;
+      return `${String(v.getDate()).padStart(2,'0')}.${String(v.getMonth()+1).padStart(2,'0')}.${v.getFullYear()}`;
+    }
+
+    function checkboxGruppe(row, wortSpalten, beschriebSpalte, trenner) {
+      const w = [];
+      wortSpalten.forEach(([sp, wort]) => { if (istX(row[col(sp)])) w.push(wort); });
+      let text = w.join(trenner);
+      const b = beschriebSpalte ? clean(row[col(beschriebSpalte)]) : null;
+      if (b) text = text ? `${text} (${b})` : b;
+      return text || null;
+    }
+
+    // Deduplizierung: beste Zeile pro KdNr+Datum
+    const beste = {};
+    for (let i = startIdx; i < rows.length; i++) {
+      const row = rows[i]; if (!row) continue;
+      const kdnr = clean(row[col('D')]); if (!kdnr) continue;
+      const datum = fmtDatum(row[col('S')]); if (!datum) continue;
+      const key = `${kdnr}|${datum}`;
+      let score = 0;
+      for (let c = col('U'); c < row.length; c++) { if (clean(row[c])) score++; }
+      if (!beste[key] || beste[key].score < score) beste[key] = { row, score };
+    }
+
+    const kundenByKdnr = {};
+    kunden.forEach(k => { kundenByKdnr[k.kdnr] = k; });
+
+    let zugeordnet = 0, nichtGefunden = 0, korrigiert = 0, neuTermine = 0;
+    const details = [];
+
+    Object.keys(beste).forEach(key => {
+      const [kdnr, datum] = key.split('|');
+      const { row } = beste[key];
+      const kunde = kundenByKdnr[kdnr];
+      if (!kunde) { nichtGefunden++; return; }
+
+      const geruch = checkboxGruppe(row, [['U','kein'],['V','leicht'],['W','stark'],['X','faulig'],['Y','erdig'],['Z','andere']], 'AA', ' ');
+      const farbe = checkboxGruppe(row, [['AB','klar'],['AC','trüb'],['AD','gelblich'],['AE','bräunlich'],['AF','gräulich'],['AG','andere']], 'AH', ' / ');
+      const schlammAblauf = checkboxGruppe(row, [['AI','kein'],['AJ','wenig'],['AK','viel']], null, ' ');
+      const hJa = istX(row[col('BC')]); const hNein = istX(row[col('BD')]);
+      let handlungsbedarf = null;
+      if (hJa) handlungsbedarf = 'Ja'; else if (hNein) handlungsbedarf = 'Nein';
+
+      const IMMER = [['AL','pH'],['AM','O2 A'],['AN','Temp A'],['AO','DS'],['AV','Amm.'],['AX','CSB']];
+      const OPT = [['AP','Bewuchs'],['AQ','Schlammfarbe'],['AR','O2 BB'],['AS','Temp'],['AT','BB'],['AU','NB'],
+        ['AW','Ab.Vol.'],['AY','Stunden'],['AZ','Nitrit'],['BA','Absaugen'],['BB','Monteur'],
+        ['BK','Betriebsjournal'],['BL','Phosphat'],['BM','GUS'],['BN','Wetter'],['BO','DOC']];
+      const BEM = [['BE','Bemerkungen'],['BF','Bem. AWEL'],['BG','Vermerk WKS'],['BH','Ersatzteile'],['BI','Nächster Service'],['BJ','Büro Information']];
+
+      const messwerteImmer = IMMER.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) ?? 'k.A.' }));
+      const messwerteOptional = OPT.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert);
+      const bemerkungen = BEM.map(([sp,l]) => ({ label: l, wert: clean(row[col(sp)]) })).filter(f => f.wert);
+
+      // Termin-Abgleich
+      let termin = (kunde.termine || []).find(t => t.datum === datum);
+      if (!termin) {
+        // Nahen Termin suchen (±30 Tage)
+        const ziel = new Date(datum.split('.')[2], datum.split('.')[1]-1, datum.split('.')[0]);
+        let bester = null, besterAbs = Infinity;
+        (kunde.termine || []).forEach(t => {
+          const m = (t.datum||'').match(/^(\d+)\.(\d+)\.(\d+)$/);
+          if (!m) return;
+          const d = new Date(m[3], m[2]-1, m[1]);
+          const abs = Math.abs(d - ziel) / 86400000;
+          if (abs <= 30 && abs < besterAbs) { bester = t; besterAbs = abs; }
+        });
+        if (bester) { bester.datum = datum; korrigiert++; termin = bester; }
+        else {
+          const d = new Date(datum.split('.')[2], datum.split('.')[1]-1, datum.split('.')[0]);
+          const nt = { halbjahr: null, jahr: d ? String(d.getFullYear()) : null, datum };
+          if (!kunde.termine) kunde.termine = [];
+          kunde.termine.push(nt); neuTermine++; termin = nt;
+        }
+      }
+
+      if (!kunde.analysedaten) kunde.analysedaten = [];
+      kunde.analysedaten = kunde.analysedaten.filter(a => a.datum !== datum);
+      kunde.analysedaten.push({ datum, geruch, farbe, schlammAblauf, handlungsbedarf, messwerteImmer, messwerteOptional, bemerkungen });
+      kunde.analysedaten.sort((a, b) => (a.datum||'').split('.').reverse().join('').localeCompare((b.datum||'').split('.').reverse().join('')));
+      zugeordnet++;
+    });
+
+    // Halbjahr-Fix
+    kunden.forEach(k => {
+      const jahre = {};
+      (k.termine || []).forEach(t => { if (t.jahr && t.datum) { if (!jahre[t.jahr]) jahre[t.jahr] = []; jahre[t.jahr].push(t); } });
+      Object.values(jahre).forEach(tl => {
+        if (tl.length < 2) return;
+        tl.sort((a,b) => (a.datum||'').split('.').reverse().join('').localeCompare((b.datum||'').split('.').reverse().join('')));
+        tl[0].halbjahr = '1';
+        for (let i = 1; i < tl.length; i++) tl[i].halbjahr = '2';
+      });
+    });
+
+    // Speichern
+    const kundenPfad = path.join(__dirname, 'data', 'kunden.json');
+    fs.writeFileSync(kundenPfad, JSON.stringify(kunden, null, 2));
+    loadData(); // Neu laden
+
+    const total = kunden.reduce((s, k) => s + (k.analysedaten ? k.analysedaten.length : 0), 0);
+
+    res.json({
+      ok: true,
+      zugeordnet,
+      nichtGefunden,
+      korrigiert,
+      neuTermine,
+      totalAnalysedaten: total,
+      dateiname: req.file.originalname,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Archiv-Info: wie viele Analysedaten pro Jahr
+app.get('/api/import/archiv', requireAuth, (req, res) => {
+  const proJahr = {};
+  kunden.forEach(k => {
+    (k.analysedaten || []).forEach(a => {
+      const jahr = a.datum ? a.datum.split('.')[2] : '?';
+      proJahr[jahr] = (proJahr[jahr] || 0) + 1;
+    });
+  });
+  const total = kunden.reduce((s, k) => s + (k.analysedaten ? k.analysedaten.length : 0), 0);
+  res.json({ proJahr, total });
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.listen(PORT, () => {
+  console.log(`Server läuft auf Port ${PORT}`);
+});
