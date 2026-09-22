@@ -1201,6 +1201,7 @@ app.get('/api/planungskontrolle', requireAuth, (req, res) => {
     zuWenig: [],          // weniger Termine als Services
     zuViel: [],           // mehr Termine als Services
     ohneAngabe: [],       // keine Anzahl Service in den Stammdaten
+    potenziell: [],       // 4-stellige Kundennummern: noch keine fixen Kunden
   };
   let ok = 0;
 
@@ -1236,6 +1237,10 @@ app.get('/api/planungskontrolle', requireAuth, (req, res) => {
       termine: termine.map(t => ({ datum: t.datum, zeit: normZeit(t.zeit) })),
     };
 
+    // 4-stellige Kundennummern sind potenzielle Kunden und noch nicht fix
+    // eingeplant – sie werden separat geführt und nicht als Fehler gewertet.
+    if (/^\d{4}$/.test(String(k.kdnr).trim())) { gruppen.potenziell.push(eintrag); return; }
+
     if (soll === null) { gruppen.ohneAngabe.push(eintrag); return; }
 
     // Im Halbjahr-Modus wird nur ein Termin bis 30.6. erwartet
@@ -1261,6 +1266,7 @@ app.get('/api/planungskontrolle', requireAuth, (req, res) => {
       zuWenig: gruppen.zuWenig.length,
       zuViel: gruppen.zuViel.length,
       ohneAngabe: gruppen.ohneAngabe.length,
+      potenziell: gruppen.potenziell.length,
     },
   });
 });

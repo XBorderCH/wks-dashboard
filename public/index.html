@@ -2078,6 +2078,7 @@ function zeichnePlanung(d){
       <div class="pk-kachel warn"><div class="zahl">${d.summe.zuWenig}</div><div class="txt">zu wenig</div></div>
       <div class="pk-kachel warn"><div class="zahl">${d.summe.zuViel}</div><div class="txt">zu viel</div></div>
       <div class="pk-kachel"><div class="zahl">${d.summe.ohneAngabe}</div><div class="txt">ohne Angabe</div></div>
+      <div class="pk-kachel"><div class="zahl">${d.summe.potenziell}</div><div class="txt">4000er</div></div>
     </div>
 
     <div class="pk-gruppe">
@@ -2102,6 +2103,12 @@ function zeichnePlanung(d){
       <h4>Ohne Angabe Anzahl Service (${d.summe.ohneAngabe})</h4>
       <p>In den Stammdaten fehlt der Sollwert, eine Prüfung ist hier nicht möglich.</p>
       ${tabelle(g.ohneAngabe, false)}
+    </div>
+
+    <div class="pk-gruppe">
+      <h4>4000er-Nummern (${d.summe.potenziell})</h4>
+      <p>Vierstellige Kundennummern – potenzielle Kunden, noch nicht fix. Ohne Servicedatum ist das hier normal und kein Fehler.</p>
+      ${tabelle(g.potenziell, true)}
     </div>
   `;
 
