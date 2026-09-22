@@ -2174,6 +2174,16 @@ async function openVerwaltung(){
       <div id="upload-result"></div>
     </div>
     <div class="verw-section">
+      <h4>Datensicherung</h4>
+      <p id="sich-info">Lade Übersicht…</p>
+      <div class="verw-datum-row">
+        <button type="button" class="strecke-btn" id="sich-btn">Sicherung herunterladen</button>
+        <button type="button" class="strecke-btn" id="sich-restore-btn">Sicherung einspielen</button>
+        <input type="file" id="sich-file" accept=".json" style="display:none" />
+      </div>
+      <div id="sich-result"></div>
+    </div>
+    <div class="verw-section">
       <h4>Verrechnung herunterladen</h4>
       <p>Alle Services im gewählten Zeitraum, die verrechnet werden müssen: Kunden mit 1 Service pro Jahr (mit Wartungsgebühr) sowie alle Kunden mit notierten Ersatzteilen. Kunden mit 2 Services ohne Ersatzteile werden weggelassen.</p>
       <div id="verr-letzter" style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">${letzterDownloadText(meta)}</div>
@@ -2215,6 +2225,71 @@ async function openVerwaltung(){
       resultEl.innerHTML = '<div class="verw-result err">Fehler beim Hochladen.</div>';
     }
     fileInput.value = '';
+  });
+
+  // Datensicherung
+  (async () => {
+    try {
+      const r = await fetch('/api/sicherung/info');
+      const d = await r.json();
+      let stand = '';
+      if (d.zuletztGeaendert) {
+        const dt = new Date(d.zuletztGeaendert);
+        stand = ` Letzte Datenänderung: ${String(dt.getDate()).padStart(2,'0')}.${String(dt.getMonth()+1).padStart(2,'0')}.${dt.getFullYear()}, ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')} Uhr.`;
+      }
+      document.getElementById('sich-info').textContent =
+        `Sichert ${d.anzahlKunden} Kunden, ${d.anzahlAnalysedaten} Analysedaten und ${d.anzahlTermine} Termine als JSON-Datei.${stand}`;
+    } catch(e) {
+      document.getElementById('sich-info').textContent = 'Sichert alle Kundendaten, Termine und Analysedaten als JSON-Datei.';
+    }
+  })();
+
+  document.getElementById('sich-btn').addEventListener('click', async () => {
+    const resultEl = document.getElementById('sich-result');
+    resultEl.innerHTML = '<div class="verw-result ok">Sicherung wird erstellt…</div>';
+    try {
+      const r = await fetch('/api/sicherung');
+      if(!r.ok) throw new Error('Fehler');
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const jetzt = new Date();
+      a.href = url;
+      a.download = `WKS_Sicherung_${jetzt.getFullYear()}${String(jetzt.getMonth()+1).padStart(2,'0')}${String(jetzt.getDate()).padStart(2,'0')}_${String(jetzt.getHours()).padStart(2,'0')}${String(jetzt.getMinutes()).padStart(2,'0')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      resultEl.innerHTML = '<div class="verw-result ok">✓ Sicherung heruntergeladen.</div>';
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Sicherung fehlgeschlagen.</div>';
+    }
+  });
+
+  const sichFile = document.getElementById('sich-file');
+  document.getElementById('sich-restore-btn').addEventListener('click', () => {
+    if(!confirm('Sicherung einspielen? Der gesamte aktuelle Datenbestand wird dabei durch die Sicherung ersetzt.')) return;
+    sichFile.click();
+  });
+  sichFile.addEventListener('change', async () => {
+    const file = sichFile.files[0];
+    if(!file) return;
+    const resultEl = document.getElementById('sich-result');
+    resultEl.innerHTML = '<div class="verw-result ok">Sicherung wird eingespielt…</div>';
+    const fd = new FormData();
+    fd.append('datei', file);
+    try {
+      const r = await fetch('/api/sicherung/einspielen', { method:'POST', body: fd });
+      const d = await r.json();
+      if(d.ok){
+        resultEl.innerHTML = `<div class="verw-result ok">✓ Sicherung eingespielt: ${d.anzahlKunden} Kunden, ${d.anzahlAnalysedaten} Analysedaten.</div>`;
+      } else {
+        resultEl.innerHTML = `<div class="verw-result err">${escapeHtml(d.error || 'Fehler')}</div>`;
+      }
+    } catch(err) {
+      resultEl.innerHTML = '<div class="verw-result err">Einspielen fehlgeschlagen.</div>';
+    }
+    sichFile.value = '';
   });
 
   // Verrechnungs-Download

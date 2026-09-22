@@ -6,7 +6,7 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const ExcelJS = require('exceljs');
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 60 * 1024 * 1024 } });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1104,6 +1104,86 @@ function parseAnalyseUpload(filePath) {
   }
   return eintraege;
 }
+
+// ---- Datensicherung ----
+// Lädt alle veränderlichen Daten als eine JSON-Datei herunter bzw. spielt sie
+// wieder ein. Die Sicherung enthält Kundendaten inkl. Terminen und
+// Analysedaten sowie den Stand der Verrechnung.
+app.get('/api/sicherung', requireAuth, (req, res) => {
+  try {
+    const jetzt = new Date();
+    const stempel = `${jetzt.getFullYear()}${String(jetzt.getMonth() + 1).padStart(2, '0')}${String(jetzt.getDate()).padStart(2, '0')}_${String(jetzt.getHours()).padStart(2, '0')}${String(jetzt.getMinutes()).padStart(2, '0')}`;
+
+    let verrechnung = null;
+    try { verrechnung = JSON.parse(fs.readFileSync(VERRECHNUNG_STATE, 'utf-8')); } catch (e) {}
+
+    const inhalt = {
+      typ: 'WKS-Dashboard-Sicherung',
+      version: 1,
+      erstellt: jetzt.toISOString(),
+      datenverzeichnis: DATA_DIR,
+      anzahlKunden: kunden.length,
+      anzahlAnalysedaten: kunden.reduce((s, k) => s + ((k.analysedaten || []).length), 0),
+      anzahlTermine: kunden.reduce((s, k) => s + ((k.termine || []).length), 0),
+      kunden,
+      verrechnungState: verrechnung,
+    };
+
+    res.setHeader('Content-Disposition', `attachment; filename=WKS_Sicherung_${stempel}.json`);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.send(JSON.stringify(inhalt, null, 2));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Übersicht, was eine Sicherung aktuell enthalten würde
+app.get('/api/sicherung/info', requireAuth, (req, res) => {
+  let letzte = null;
+  try { letzte = fs.statSync(KUNDEN_PFAD).mtime.toISOString(); } catch (e) {}
+  res.json({
+    anzahlKunden: kunden.length,
+    anzahlAnalysedaten: kunden.reduce((s, k) => s + ((k.analysedaten || []).length), 0),
+    anzahlTermine: kunden.reduce((s, k) => s + ((k.termine || []).length), 0),
+    datenverzeichnis: DATA_DIR,
+    zuletztGeaendert: letzte,
+  });
+});
+
+// Sicherung wieder einspielen (ersetzt den gesamten Datenbestand)
+app.post('/api/sicherung/einspielen', requireAuth, upload.single('datei'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Keine Datei hochgeladen.' });
+  let inhalt;
+  try {
+    inhalt = JSON.parse(req.file.buffer.toString('utf-8'));
+  } catch (e) {
+    return res.status(400).json({ error: 'Die Datei konnte nicht gelesen werden – es muss eine JSON-Sicherungsdatei aus diesem Dashboard sein.' });
+  }
+  try {
+    if (!inhalt || inhalt.typ !== 'WKS-Dashboard-Sicherung' || !Array.isArray(inhalt.kunden)) {
+      return res.status(400).json({ error: 'Das ist keine gültige WKS-Sicherungsdatei.' });
+    }
+    if (inhalt.kunden.length === 0) {
+      return res.status(400).json({ error: 'Die Sicherung enthält keine Kunden.' });
+    }
+
+    // Vorherigen Stand daneben ablegen, falls doch etwas schiefgeht
+    try { fs.copyFileSync(KUNDEN_PFAD, KUNDEN_PFAD + '.vor-wiederherstellung'); } catch (e) {}
+
+    fs.writeFileSync(KUNDEN_PFAD, JSON.stringify(inhalt.kunden, null, 2), 'utf-8');
+    if (inhalt.verrechnungState) speichereVerrechnungState(inhalt.verrechnungState);
+    loadData();
+
+    res.json({
+      ok: true,
+      anzahlKunden: kunden.length,
+      anzahlAnalysedaten: kunden.reduce((s, k) => s + ((k.analysedaten || []).length), 0),
+      erstellt: inhalt.erstellt || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ---- Planungskontrolle ----
 // Prüft, ob jeder Kunde so viele Servicetermine geplant hat wie in den
