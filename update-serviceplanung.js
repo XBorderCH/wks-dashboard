@@ -204,9 +204,19 @@ rows.forEach((row) => {
     ((a.jahr || '') + (a.halbjahr || '0')).localeCompare((b.jahr || '') + (b.halbjahr || '0'))
   );
 
-  // Finale Deduplizierung (Sicherheitsnetz): pro Datum+Halbjahr nur den letzten behalten
+  // Finale Deduplizierung: pro Datum nur einen Termin behalten. Stehen in der
+  // Stammliste beim 1. und 2. Service dieselben Daten, entstand hier sonst ein
+  // doppelter Eintrag mit Halbjahr 1 und 2.
   const bestByKey = {};
-  kunde.termine.forEach((t) => { bestByKey[(t.datum || '') + '|' + (t.halbjahr || '')] = t; });
+  kunde.termine.forEach((t) => {
+    const key = t.datum || '';
+    const vorhanden = bestByKey[key];
+    if (!vorhanden) { bestByKey[key] = t; return; }
+    // Den Eintrag mit Uhrzeit bzw. dem tieferen Halbjahr bevorzugen
+    const besser = (!vorhanden.zeit && t.zeit)
+      || (!!vorhanden.zeit === !!t.zeit && String(t.halbjahr || '9') < String(vorhanden.halbjahr || '9'));
+    if (besser) bestByKey[key] = t;
+  });
   kunde.termine = Object.values(bestByKey);
   kunde.termine.sort((a, b) =>
     ((a.jahr || '') + (a.halbjahr || '0')).localeCompare((b.jahr || '') + (b.halbjahr || '0'))

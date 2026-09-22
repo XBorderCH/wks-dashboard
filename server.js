@@ -1216,6 +1216,13 @@ app.get('/api/planungskontrolle', requireAuth, (req, res) => {
     if (modus === 'halbjahr') {
       termine = termine.filter(t => parseDatDE(t.datum) <= new Date(jahr, 5, 30));
     }
+    // Pro Datum nur einen Termin zählen (doppelte Einträge verfälschen sonst das Ist)
+    const jeDatum = new Map();
+    termine.forEach(t => {
+      const vorhanden = jeDatum.get(t.datum);
+      if (!vorhanden || (!vorhanden.zeit && t.zeit)) jeDatum.set(t.datum, t);
+    });
+    termine = Array.from(jeDatum.values());
     termine.sort((a, b) => sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum)));
 
     const eintrag = {

@@ -4791,12 +4791,6 @@
         "jahr": "2026",
         "datum": "30.07.2026",
         "zeit": "0730"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -5314,12 +5308,6 @@
             "text": "23.7.25 1x Thomas LAP 120 per Post gesandt, muss noch Ronny verrechnet werden?"
           }
         ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "0820"
       }
     ],
     "gebuehren": [
@@ -5831,12 +5819,6 @@
       },
       {
         "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "0950"
-      },
-      {
-        "halbjahr": "2",
         "jahr": "2026",
         "datum": "30.07.2026",
         "zeit": "0950"
@@ -6374,12 +6356,6 @@
         "jahr": "2026",
         "datum": "30.07.2026",
         "zeit": "1030"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "1030"
       }
     ],
     "gebuehren": [
@@ -6905,12 +6881,6 @@
             "text": "1/26: Steuerung reset machen"
           }
         ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "1110"
       }
     ],
     "gebuehren": [
@@ -7445,12 +7415,6 @@
         "jahr": "2026",
         "datum": "30.07.2026",
         "zeit": "1245"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "1245"
       }
     ],
     "gebuehren": [
@@ -7972,12 +7936,6 @@
       },
       {
         "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "30.07.2026",
-        "zeit": "1330"
-      },
-      {
-        "halbjahr": "2",
         "jahr": "2026",
         "datum": "30.07.2026",
         "zeit": "1330"
@@ -8812,12 +8770,6 @@
             "text": "Zeit und Datum kontrollieren!, Kalk Zudosierung auf alle 2W. 1 Becher erhöht"
           }
         ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "03.08.2026",
-        "zeit": "0730"
       }
     ],
     "gebuehren": [
@@ -9365,12 +9317,6 @@
             "text": "Batterie mitnehmen!"
           }
         ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "03.08.2026",
-        "zeit": "0810"
       }
     ],
     "gebuehren": [
@@ -9890,12 +9836,6 @@
       },
       {
         "halbjahr": "1",
-        "jahr": "2026",
-        "datum": "03.08.2026",
-        "zeit": "0910"
-      },
-      {
-        "halbjahr": "2",
         "jahr": "2026",
         "datum": "03.08.2026",
         "zeit": "0910"
@@ -10466,12 +10406,6 @@
             "text": "Avis. Zusätzlich an Maciek 077 237 66 87 (Betreuer) nur englisch sprechend"
           }
         ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "03.08.2026",
-        "zeit": "1230"
       }
     ],
     "gebuehren": [
@@ -11013,12 +10947,6 @@
             "text": "erste Kontrolle bis Mitte April oder erst ab Ende Juni"
           }
         ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "03.08.2026",
-        "zeit": "1050"
       }
     ],
     "gebuehren": [
@@ -19377,28 +19305,6 @@
     },
     "termine": [
       {
-        "halbjahr": "2",
-        "jahr": "2022",
-        "datum": "13.1.222"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2023",
-        "datum": "12.1.223"
-      },
-      {
-        "halbjahr": "1",
-        "jahr": "2024",
-        "datum": "22.1.224",
-        "zeit": "0913"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2024",
-        "datum": "7.3.224",
-        "zeit": "0913"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": null,
@@ -19427,6 +19333,28 @@
             "text": "Shampoo nicht abgegeben"
           }
         ]
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2022",
+        "datum": "13.1.222"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2023",
+        "datum": "12.1.223"
+      },
+      {
+        "halbjahr": "1",
+        "jahr": "2024",
+        "datum": "22.1.224",
+        "zeit": "0913"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2024",
+        "datum": "7.3.224",
+        "zeit": "0913"
       }
     ],
     "gebuehren": [
@@ -45207,12 +45135,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "0715"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.3020833333333333"
       }
     ],
     "gebuehren": [
@@ -45746,12 +45668,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "0747"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.3243055555555555"
       }
     ],
     "gebuehren": [
@@ -46270,12 +46186,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "0819"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.3465277777777777"
       }
     ],
     "gebuehren": [
@@ -46790,12 +46700,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "0850"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.36805555555555547"
       }
     ],
     "gebuehren": [
@@ -47315,12 +47219,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "0933"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.3979166666666666"
       }
     ],
     "gebuehren": [
@@ -47794,12 +47692,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1011"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.42430555555555544"
       }
     ],
     "gebuehren": [
@@ -48190,12 +48082,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1057"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.4562499999999999"
       }
     ],
     "gebuehren": [
@@ -48598,12 +48484,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1153"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.49513888888888874"
       }
     ],
     "gebuehren": [
@@ -49091,12 +48971,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1300"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.5416666666666666"
       }
     ],
     "gebuehren": [
@@ -49593,12 +49467,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1446"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.6152777777777777"
       }
     ],
     "gebuehren": [
@@ -50076,12 +49944,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1527"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.6437499999999998"
       }
     ],
     "gebuehren": [
@@ -50463,18 +50325,6 @@
         "jahr": "2026",
         "datum": "01.09.2026",
         "zeit": "1638",
-        "notizen": [
-          {
-            "label": "Nächster Service",
-            "text": "2/26: siehe Mail vom 17.6.26"
-          }
-        ]
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "01.09.2026",
-        "zeit": "0.6930555555555553",
         "notizen": [
           {
             "label": "Nächster Service",
@@ -54218,12 +54068,6 @@
         "jahr": "2026",
         "datum": "03.09.2026",
         "zeit": "0715"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "03.09.2026",
-        "zeit": "0.3020833333333333"
       }
     ],
     "gebuehren": [
@@ -106297,12 +106141,6 @@
         "jahr": "2026",
         "datum": "15.09.2026",
         "zeit": "1340"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2026",
-        "datum": "15.09.2026",
-        "zeit": "0000"
       }
     ],
     "gebuehren": [
@@ -154661,13 +154499,13 @@
       {
         "halbjahr": "2",
         "jahr": "2026",
-        "datum": "19.10.2026",
-        "zeit": "0855"
+        "datum": "15.09.2026"
       },
       {
         "halbjahr": "2",
         "jahr": "2026",
-        "datum": "15.09.2026"
+        "datum": "19.10.2026",
+        "zeit": "0855"
       }
     ],
     "gebuehren": [
@@ -245181,13 +245019,13 @@
       {
         "halbjahr": "2",
         "jahr": "2025",
-        "datum": "24.11.2025"
+        "zeit": "1000",
+        "datum": "03.10.2025"
       },
       {
         "halbjahr": "2",
         "jahr": "2025",
-        "zeit": "1000",
-        "datum": "03.10.2025"
+        "datum": "24.11.2025"
       },
       {
         "halbjahr": "1",
@@ -257427,12 +257265,6 @@
         "zeit": "1342"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2024",
-        "datum": "H1061",
-        "zeit": "1330"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": "1416",
@@ -257455,6 +257287,12 @@
         "jahr": "2026",
         "datum": "17.09.2026",
         "zeit": "1355"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2024",
+        "datum": "H1061",
+        "zeit": "1330"
       }
     ],
     "gebuehren": [
@@ -311209,13 +311047,13 @@
       {
         "halbjahr": "2",
         "jahr": "2025",
-        "datum": "31.07.2025"
+        "zeit": "1150",
+        "datum": "08.05.2025"
       },
       {
         "halbjahr": "2",
         "jahr": "2025",
-        "zeit": "1150",
-        "datum": "08.05.2025"
+        "datum": "31.07.2025"
       },
       {
         "halbjahr": "1",
@@ -392495,19 +392333,9 @@
     },
     "termine": [
       {
-        "halbjahr": "2",
-        "jahr": "2022",
-        "datum": "Dat_2_22"
-      },
-      {
         "halbjahr": "1",
         "jahr": "2023",
         "datum": "Dat_1_23"
-      },
-      {
-        "halbjahr": "2",
-        "jahr": "2023",
-        "datum": "Dat_2_23"
       },
       {
         "halbjahr": "1",
@@ -392516,16 +392344,20 @@
         "zeit": "0124"
       },
       {
-        "halbjahr": "2",
-        "jahr": "2024",
-        "datum": "Dat_S",
-        "zeit": null
-      },
-      {
         "halbjahr": "1",
         "jahr": "2025",
         "zeit": null,
         "datum": "Dat_1_25"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2022",
+        "datum": "Dat_2_22"
+      },
+      {
+        "halbjahr": "2",
+        "jahr": "2023",
+        "datum": "Dat_2_23"
       },
       {
         "halbjahr": "2",
