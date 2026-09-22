@@ -155,11 +155,30 @@
   .chip-clickable:active{filter:brightness(0.9);}
 
   /* ---- Tagestour-Modal ---- */
-  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay, #avisierung-overlay, #verwaltung-overlay, #import-overlay{
+  #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay, #avisierung-overlay, #verwaltung-overlay, #import-overlay, #planung-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
     align-items:center;justify-content:center;padding:20px;
   }
-  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open, #avisierung-overlay.open, #verwaltung-overlay.open, #import-overlay.open{display:flex;}
+  #tagestour-overlay.open, #tage-overlay.open, #lager-overlay.open, #schieber-overlay.open, #grenzwerte-overlay.open, #avisierung-overlay.open, #verwaltung-overlay.open, #import-overlay.open, #planung-overlay.open{display:flex;}
+  .pk-modus{display:flex;gap:8px;margin-bottom:14px;}
+  .pk-modus button{flex:1;padding:8px 10px;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font-size:13px;}
+  .pk-modus button.aktiv{background:var(--ink,#1a1a1a);color:#fff;border-color:var(--ink,#1a1a1a);}
+  .pk-ampel{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:18px;}
+  .pk-kachel{border:1px solid var(--line);border-radius:6px;padding:10px;text-align:center;}
+  .pk-kachel .zahl{font-size:22px;font-weight:700;line-height:1.1;}
+  .pk-kachel .txt{font-size:11.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.03em;margin-top:4px;}
+  .pk-kachel.ok .zahl{color:#1a7f37;}
+  .pk-kachel.warn .zahl{color:#b35c00;}
+  .pk-kachel.err .zahl{color:#b42318;}
+  .pk-gruppe{margin-bottom:22px;}
+  .pk-gruppe h4{margin:0 0 4px;font-size:14px;}
+  .pk-gruppe p{margin:0 0 8px;font-size:12.5px;color:var(--ink-soft);}
+  .pk-tab{width:100%;border-collapse:collapse;font-size:13px;}
+  .pk-tab th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-soft);border-bottom:1px solid var(--line);padding:4px 6px;}
+  .pk-tab td{border-bottom:1px solid var(--line);padding:6px;vertical-align:top;}
+  .pk-tab tr{cursor:pointer;}
+  .pk-tab tr:hover td{background:var(--bg);}
+  .pk-leer{font-size:13px;color:var(--ink-soft);}
   .modal-card{
     background:var(--surface);border-radius:12px;max-width:440px;width:100%;
     max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(20,30,26,0.2);
@@ -552,6 +571,9 @@
         <button type="button" class="logo-menu-item" data-menu="grenzwerte">
           <span>Grenzwerte</span>
         </button>
+        <button type="button" class="logo-menu-item" data-menu="planung">
+          <span>Planungskontrolle</span>
+        </button>
         <button type="button" class="logo-menu-item" data-menu="avisierung">
           <span>Avisierung</span>
         </button>
@@ -628,6 +650,16 @@
       <button class="modal-close" id="grenzwerte-close">&times;</button>
     </div>
     <div class="modal-body" id="grenzwerte-body"></div>
+  </div>
+</div>
+
+<div id="planung-overlay">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 id="planung-title">Planungskontrolle</h3>
+      <button class="modal-close" id="planung-close">&times;</button>
+    </div>
+    <div class="modal-body" id="planung-body"></div>
   </div>
 </div>
 
@@ -1507,6 +1539,7 @@ if(logoBtn){
       if(menu === 'lager') openLager();
       if(menu === 'schieber') openSchieber();
       if(menu === 'grenzwerte') openGrenzwerte();
+      if(menu === 'planung') openPlanung();
       if(menu === 'avisierung') openAvisierung();
       if(menu === 'import') openImport();
       if(menu === 'verwaltung') openVerwaltung();
@@ -1990,6 +2023,111 @@ async function openAvisierung(){
     $('#avisierung-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
   }
 }
+
+// ---- Planungskontrolle ----
+let planungModus = 'jahr';
+
+async function openPlanung(){
+  const overlay = $('#planung-overlay');
+  $('#planung-title').textContent = 'Planungskontrolle';
+  $('#planung-body').innerHTML = '<div class="modal-empty">Lade…</div>';
+  overlay.classList.add('open');
+  await ladePlanung();
+}
+
+async function ladePlanung(){
+  try{
+    const r = await fetch('/api/planungskontrolle?modus=' + planungModus);
+    const d = await r.json();
+    zeichnePlanung(d);
+  }catch(err){
+    $('#planung-body').innerHTML = '<div class="modal-empty">Fehler beim Laden.</div>';
+  }
+}
+
+function zeichnePlanung(d){
+  const g = d.gruppen;
+  const halbjahr = d.modus === 'halbjahr';
+
+  function tabelle(liste, zeigeSoll){
+    if(!liste.length) return '<div class="pk-leer">Keine Abweichungen.</div>';
+    return `<table class="pk-tab">
+      <thead><tr>
+        <th>KdNr</th><th>Kunde</th><th>Fahrer</th>
+        <th>${zeigeSoll ? 'Soll' : 'Angabe'}</th><th>Ist</th><th>Geplante Termine</th>
+      </tr></thead>
+      <tbody>${liste.map(e => `<tr data-kdnr="${escapeHtml(e.kdnr)}">
+        <td>${escapeHtml(e.kdnr)}</td>
+        <td>${escapeHtml(e.name)}</td>
+        <td>${escapeHtml(e.fahrer || '–')}</td>
+        <td>${zeigeSoll ? (e.soll ?? '–') : escapeHtml(e.sollRoh || '–')}</td>
+        <td>${e.ist}</td>
+        <td>${e.termine.length ? e.termine.map(t => escapeHtml(t.datum + (t.zeit ? ' ' + t.zeit : ''))).join('<br>') : '–'}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  $('#planung-body').innerHTML = `
+    <div class="pk-modus">
+      <button type="button" data-modus="halbjahr" class="${halbjahr ? 'aktiv' : ''}">1. Halbjahr ${d.jahr}</button>
+      <button type="button" data-modus="jahr" class="${halbjahr ? '' : 'aktiv'}">Ganzes Jahr ${d.jahr}</button>
+    </div>
+    <div class="pk-ampel">
+      <div class="pk-kachel ok"><div class="zahl">${d.ok}</div><div class="txt">korrekt</div></div>
+      <div class="pk-kachel err"><div class="zahl">${d.summe.fehlt}</div><div class="txt">ohne Termin</div></div>
+      <div class="pk-kachel warn"><div class="zahl">${d.summe.zuWenig}</div><div class="txt">zu wenig</div></div>
+      <div class="pk-kachel warn"><div class="zahl">${d.summe.zuViel}</div><div class="txt">zu viel</div></div>
+      <div class="pk-kachel"><div class="zahl">${d.summe.ohneAngabe}</div><div class="txt">ohne Angabe</div></div>
+    </div>
+
+    <div class="pk-gruppe">
+      <h4>Kein Termin geplant (${d.summe.fehlt})</h4>
+      <p>${halbjahr ? 'Kein Termin bis 30. Juni.' : 'Im ganzen Jahr kein Termin hinterlegt.'}</p>
+      ${tabelle(g.fehlt, true)}
+    </div>
+
+    <div class="pk-gruppe">
+      <h4>Zu wenig Termine (${d.summe.zuWenig})</h4>
+      <p>${halbjahr ? 'Wird im Halbjahr-Modus nur selten auftreten.' : 'Weniger Termine als in den Stammdaten vorgesehen.'}</p>
+      ${tabelle(g.zuWenig, true)}
+    </div>
+
+    <div class="pk-gruppe">
+      <h4>Zu viele Termine (${d.summe.zuViel})</h4>
+      <p>Mehr Termine als vorgesehen – oft ein doppelt erfasster Service.</p>
+      ${tabelle(g.zuViel, true)}
+    </div>
+
+    <div class="pk-gruppe">
+      <h4>Ohne Angabe Anzahl Service (${d.summe.ohneAngabe})</h4>
+      <p>In den Stammdaten fehlt der Sollwert, eine Prüfung ist hier nicht möglich.</p>
+      ${tabelle(g.ohneAngabe, false)}
+    </div>
+  `;
+
+  $('#planung-body').querySelectorAll('.pk-modus button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      planungModus = btn.dataset.modus;
+      $('#planung-body').innerHTML = '<div class="modal-empty">Lade…</div>';
+      await ladePlanung();
+    });
+  });
+
+  $('#planung-body').querySelectorAll('.pk-tab tr[data-kdnr]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      closePlanung();
+      openKunde(tr.dataset.kdnr);
+    });
+  });
+}
+
+function closePlanung(){
+  $('#planung-overlay').classList.remove('open');
+}
+$('#planung-close').addEventListener('click', closePlanung);
+$('#planung-overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'planung-overlay') closePlanung();
+});
 
 function closeAvisierung(){
   $('#avisierung-overlay').classList.remove('open');

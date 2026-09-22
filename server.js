@@ -23,10 +23,34 @@ const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || '';
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const AVISIERUNG_ABSENDER = { name: 'WKS Weber GmbH', email: 'avisierung@wksweber.ch' };
 
+// ---- Datenverzeichnis (Render Persistent Disk) ----
+// Auf Render liegt die Disk unter /daten und überlebt jeden Deploy.
+// Lokal wird der Projektordner data/ verwendet.
+const REPO_DATA = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || (fs.existsSync('/daten') ? '/daten' : REPO_DATA);
+const KUNDEN_PFAD = path.join(DATA_DIR, 'kunden.json');
+
+// Erststart auf der Disk: Datei aus dem Repo übernehmen
+function initDatenverzeichnis() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(KUNDEN_PFAD)) {
+      const quelle = path.join(REPO_DATA, 'kunden.json');
+      if (fs.existsSync(quelle)) {
+        fs.copyFileSync(quelle, KUNDEN_PFAD);
+        console.log(`kunden.json erstmalig nach ${KUNDEN_PFAD} kopiert.`);
+      }
+    }
+  } catch (e) {
+    console.error('Datenverzeichnis konnte nicht vorbereitet werden:', e.message);
+  }
+}
+initDatenverzeichnis();
+console.log(`Datenverzeichnis: ${DATA_DIR}`);
+
 let kunden = [];
 function loadData() {
-  const p = path.join(__dirname, 'data', 'kunden.json');
-  kunden = JSON.parse(fs.readFileSync(p, 'utf-8'));
+  kunden = JSON.parse(fs.readFileSync(KUNDEN_PFAD, 'utf-8'));
   console.log(`${kunden.length} Kunden geladen.`);
 }
 loadData();
@@ -785,7 +809,7 @@ app.get('/api/avisierung', requireAuth, (req, res) => {
 
 app.get('/api/schieber', requireAuth, (req, res) => {
   try {
-    const p = path.join(__dirname, 'data', 'schieber.json');
+    const p = path.join(REPO_DATA, 'schieber.json');
     const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
     res.json(data);
   } catch (err) {
@@ -795,7 +819,7 @@ app.get('/api/schieber', requireAuth, (req, res) => {
 
 app.get('/api/grenzwerte', requireAuth, (req, res) => {
   try {
-    const p = path.join(__dirname, 'data', 'grenzwerte.json');
+    const p = path.join(REPO_DATA, 'grenzwerte.json');
     const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
     res.json(data);
   } catch (err) {
@@ -1081,13 +1105,86 @@ function parseAnalyseUpload(filePath) {
   return eintraege;
 }
 
+// ---- Planungskontrolle ----
+// Prüft, ob jeder Kunde so viele Servicetermine geplant hat wie in den
+// Stammdaten hinterlegt (Anzahl Service/Jahr).
+app.get('/api/planungskontrolle', requireAuth, (req, res) => {
+  const jahr = Number(req.query.jahr) || new Date().getFullYear();
+  const modus = req.query.modus === 'halbjahr' ? 'halbjahr' : 'jahr';
+
+  function anzahlServiceRoh(k) {
+    return String((k.anlage && k.anlage.anzahlService) || '').trim();
+  }
+
+  const gruppen = {
+    fehlt: [],            // gar kein Termin
+    zuWenig: [],          // weniger Termine als Services
+    zuViel: [],           // mehr Termine als Services
+    ohneAngabe: [],       // keine Anzahl Service in den Stammdaten
+  };
+  let ok = 0;
+
+  kunden.forEach(k => {
+    if (!k.kdnr) return;
+    const roh = anzahlServiceRoh(k);
+    const m = roh.match(/^(\d)/);
+    const soll = m ? Number(m[1]) : null;
+
+    let termine = (k.termine || [])
+      .filter(t => t.datum && parseDatDE(t.datum) && parseDatDE(t.datum).getFullYear() === jahr);
+
+    if (modus === 'halbjahr') {
+      termine = termine.filter(t => parseDatDE(t.datum) <= new Date(jahr, 5, 30));
+    }
+    termine.sort((a, b) => sortKeyDatum(a.datum).localeCompare(sortKeyDatum(b.datum)));
+
+    const eintrag = {
+      kdnr: k.kdnr,
+      name: k.kdnrName || String(k.kdnr),
+      fahrer: (k.planung && k.planung.fahrer) || '',
+      kanton: (k.planung && k.planung.zustKt) || '',
+      soll: soll,
+      sollRoh: roh || null,
+      ist: termine.length,
+      termine: termine.map(t => ({ datum: t.datum, zeit: normZeit(t.zeit) })),
+    };
+
+    if (soll === null) { gruppen.ohneAngabe.push(eintrag); return; }
+
+    // Im Halbjahr-Modus wird nur ein Termin bis 30.6. erwartet
+    const erwartet = modus === 'halbjahr' ? 1 : soll;
+
+    if (termine.length === 0) gruppen.fehlt.push(eintrag);
+    else if (termine.length < erwartet) gruppen.zuWenig.push(eintrag);
+    else if (termine.length > erwartet) gruppen.zuViel.push(eintrag);
+    else ok++;
+  });
+
+  const sortieren = (a, b) => (a.fahrer || '').localeCompare(b.fahrer || '')
+    || String(a.kdnr).localeCompare(String(b.kdnr), 'de', { numeric: true });
+  Object.values(gruppen).forEach(g => g.sort(sortieren));
+
+  res.json({
+    jahr,
+    modus,
+    ok,
+    gruppen,
+    summe: {
+      fehlt: gruppen.fehlt.length,
+      zuWenig: gruppen.zuWenig.length,
+      zuViel: gruppen.zuViel.length,
+      ohneAngabe: gruppen.ohneAngabe.length,
+    },
+  });
+});
+
 // ---- Verrechnung (Excel-Export für den Rechnungslauf) ----
 // Regeln:
 //  - Kunden mit 1 Service/Jahr: immer aufführen, mit aktueller Wartungsgebühr
 //    (+ Ersatzteile, falls im Analyseblatt notiert)
 //  - Kunden mit 2+ Services/Jahr: nur aufführen, wenn Ersatzteile notiert sind
 //    (Wartungsgebühr wurde anfangs Jahr bereits fakturiert)
-const VERRECHNUNG_STATE = path.join(__dirname, 'data', 'verrechnung-state.json');
+const VERRECHNUNG_STATE = path.join(DATA_DIR, 'verrechnung-state.json');
 
 function ladeVerrechnungState() {
   try {
@@ -1269,17 +1366,14 @@ app.get('/api/verrechnung', requireAuth, async (req, res) => {
 
   let aktuellesDatum = null;
   let summeGebuehren = 0;
-  let anzahlMitGebuehr = 0;
   let anzahlErsatzteile = 0;
-  const kundenNummern = new Set();
 
   zeilen.forEach(z => {
     if (aktuellesDatum !== null && z.datum !== aktuellesDatum) ws.addRow([]);
     aktuellesDatum = z.datum;
 
-    kundenNummern.add(z.kdnr);
     const g = zahl(z.gebuehr);
-    if (g !== null) { summeGebuehren += g; anzahlMitGebuehr++; }
+    if (g !== null) summeGebuehren += g;
 
     const row = ws.addRow({
       datum: z.datum,
@@ -1308,19 +1402,15 @@ app.get('/api/verrechnung', requireAuth, async (req, res) => {
   });
 
   ws.addRow([]);
-  const schnitt = anzahlMitGebuehr > 0 ? summeGebuehren / anzahlMitGebuehr : 0;
   const zusammenfassung = [
-    ['Anzahl Services (Zeilen)', zeilen.length],
-    ['Anzahl verschiedene Kundennummern', kundenNummern.size],
-    ['davon mit Servicegebühr', anzahlMitGebuehr],
+    ['Anzahl Services', zeilen.length],
     ['davon mit Ersatzteilen', anzahlErsatzteile],
     ['Total Servicegebühren', summeGebuehren],
-    ['Schnitt pro verrechnetem Service', schnitt],
   ];
   zusammenfassung.forEach(([label, wert], i) => {
     const r = ws.addRow({ kunde: label, gebuehr: wert });
     r.font = { bold: true };
-    if (i >= 4) r.getCell('gebuehr').numFmt = '#,##0.00';
+    if (i === 2) r.getCell('gebuehr').numFmt = '#,##0.00';
     r.getCell('kunde').alignment = { horizontal: 'right' };
   });
 
@@ -1419,9 +1509,49 @@ app.post('/api/import/analysedaten', requireAuth, upload.single('datei'), (req, 
     }
     const startIdx = headerRowIndex + 1;
 
+    // Spalten primär über die Spaltenüberschriften zuordnen (robust gegen
+    // verschobene oder vertauschte Spalten), sonst über die Buchstabenlogik.
+    const ERWARTET = [
+      ['U','kein'],['V','leicht'],['W','stark'],['X','faulig'],['Y','erdig'],['Z','andere'],['AA','beschrieb'],
+      ['AB','klar'],['AC','trüb'],['AD','gelblich'],['AE','bräunlich'],['AF','gräulich'],['AG','andere'],['AH','beschrieb'],
+      ['AI','kein'],['AJ','wenig'],['AK','viel'],
+      ['AL','pH'],['AM','O2 A'],['AN','Temp A'],['AO','DS'],['AP','Bewuchs'],['AQ','Schlammfarbe'],
+      ['AR','O2 BB'],['AS','Temp'],['AT','BB'],['AU','NB'],['AV','Amm.'],['AW','Ab.Vol.'],['AX','CSB'],
+      ['AY','Stunden'],['AZ','Nitrit'],['BA','Absaugen'],['BB','Monteur'],
+      ['BC','Handlungsbedarf_Ja'],['BD','Handlungsbedarf_Nein'],
+      ['BE','Bemerkungen'],['BF','Bem. AWEL'],['BG','Vermerk WKS'],['BH','Ersatzteile'],
+      ['BI','Nächster Service'],['BJ','Büro Information'],['BK','Betriebsjournal'],
+      ['BL','Phosphat PO4-P'],['BM','GUS'],['BN','Wetter'],['BO','DOC'],
+    ];
+
+    const spalteNachName = {};
+    if (headerRowIndex >= 0) {
+      const hz = rows[headerRowIndex] || [];
+      // Alle Vorkommen je Überschrift sammeln (rechts von Dat_S)
+      const vorkommen = {};
+      for (let i = datSIdx + 1; i < hz.length; i++) {
+        const n = norm(hz[i]);
+        if (!n) continue;
+        if (!vorkommen[n]) vorkommen[n] = [];
+        vorkommen[n].push(i);
+      }
+      // Mehrfach vorkommende Namen (kein, andere, beschrieb) der Reihe nach vergeben
+      const verbraucht = {};
+      ERWARTET.forEach(([letter, name]) => {
+        const n = norm(name);
+        const liste = vorkommen[n];
+        if (!liste) return;
+        const pos = verbraucht[n] || 0;
+        if (pos >= liste.length) return;
+        spalteNachName[letter] = liste[pos];
+        verbraucht[n] = pos + 1;
+      });
+    }
+
     function col(letter) {
       if (letter === 'D') return kdnrIdx;
       if (letter === 'S') return datSIdx;
+      if (spalteNachName[letter] !== undefined) return spalteNachName[letter];
       let n = 0;
       for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64);
       return n - 1 + geruchOffset;
@@ -1534,7 +1664,7 @@ app.post('/api/import/analysedaten', requireAuth, upload.single('datei'), (req, 
     });
 
     // Speichern
-    const kundenPfad = path.join(__dirname, 'data', 'kunden.json');
+    const kundenPfad = KUNDEN_PFAD;
     fs.writeFileSync(kundenPfad, JSON.stringify(kunden, null, 2));
     loadData(); // Neu laden
 
