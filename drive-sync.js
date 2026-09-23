@@ -350,6 +350,28 @@ function baueAnalyse(z) {
   };
 }
 
+// Prüft, ob die Datei die nötigen Spalten mitbringt. Fehlt KdNr oder
+// Datum Service, kann keine Zeile zugeordnet werden – dann lieber abbrechen
+// als stillschweigend nichts tun.
+function pruefeAnalyseAufbau(rows, dateiname) {
+  if (!rows.length) {
+    throw new Error(`${dateiname} enthält keine Datenzeilen.`);
+  }
+  const spalten = Object.keys(rows[0]);
+  const fehlend = ['KdNr', 'Datum Service'].filter(s => !spalten.includes(s));
+  if (fehlend.length) {
+    throw new Error(`${dateiname}: die Spalte ${fehlend.join(' und ')} fehlt. `
+      + 'Die Kopfzeile darf nicht verändert werden – Spalten dürfen ausgeblendet, aber nicht gelöscht werden. '
+      + 'Bitte die Originaldatei wiederherstellen.');
+  }
+  const mitKdnr = rows.filter(z => text(z['KdNr'])).length;
+  if (mitKdnr === 0) {
+    throw new Error(`${dateiname}: in keiner Zeile steht eine Kundennummer.`);
+  }
+  const leer = rows.length - mitKdnr;
+  return { zeilen: rows.length, ohneKdnr: leer };
+}
+
 function uebernehmeAnalysen(kunden, rows) {
   let neu = 0, aktualisiert = 0, nichtGefunden = 0;
   const nachKdnr = new Map();
@@ -393,8 +415,10 @@ async function archiviereAnalysen(kunden, quelle = 'alle') {
   gesucht.forEach(name => {
     const datei = dateien[name];
     if (!datei) return;
-    bericht.dateien.push({ name, geaendert: datei.geaendert });
-    const r = uebernehmeAnalysen(kunden, zeilen(datei.workbook, 'Analyse'));
+    const rows = zeilen(datei.workbook, 'Analyse');
+    const pruefung = pruefeAnalyseAufbau(rows, name);   // wirft bei fehlenden Spalten
+    bericht.dateien.push({ name, geaendert: datei.geaendert, zeilen: pruefung.zeilen, ohneKdnr: pruefung.ohneKdnr });
+    const r = uebernehmeAnalysen(kunden, rows);
     bericht.analysen.neu += r.neu;
     bericht.analysen.aktualisiert += r.aktualisiert;
     bericht.analysen.nichtGefunden += r.nichtGefunden;
@@ -409,11 +433,19 @@ async function holeStammdaten(kunden) {
   const dateien = await ladeDateien([DATEIEN.stammdaten]);
   const datei = dateien[DATEIEN.stammdaten];
   if (!datei) throw new Error(`${DATEIEN.stammdaten} wurde im Drive-Ordner nicht gefunden.`);
+  const stammRows = zeilen(datei.workbook, 'Stammdaten');
+  if (!stammRows.length || !Object.keys(stammRows[0]).includes('KdNr')) {
+    throw new Error(`${DATEIEN.stammdaten}: im Blatt "Stammdaten" fehlt die Spalte KdNr oder es gibt keine Daten.`);
+  }
+  const planRows = zeilen(datei.workbook, 'Serviceplanung');
+  if (planRows.length && !Object.keys(planRows[0]).includes('KdNr')) {
+    throw new Error(`${DATEIEN.stammdaten}: im Blatt "Serviceplanung" fehlt die Spalte KdNr.`);
+  }
   return {
     geaendert: datei.geaendert,
-    stammdaten: uebernehmeStammdaten(kunden, zeilen(datei.workbook, 'Stammdaten')),
-    planung: uebernehmePlanung(kunden, zeilen(datei.workbook, 'Serviceplanung')),
+    stammdaten: uebernehmeStammdaten(kunden, stammRows),
+    planung: uebernehmePlanung(kunden, planRows),
   };
 }
 
-module.exports = { archiviereAnalysen, holeStammdaten, ORDNER_ID, zeilen, uebernehmeStammdaten, uebernehmePlanung, uebernehmeAnalysen };
+module.exports = { archiviereAnalysen, holeStammdaten, ORDNER_ID, zeilen, uebernehmeStammdaten, uebernehmePlanung, uebernehmeAnalysen, pruefeAnalyseAufbau };
