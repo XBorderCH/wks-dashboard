@@ -154,6 +154,14 @@
   .chip-clickable:hover{filter:brightness(0.95);}
   .chip-clickable:active{filter:brightness(0.9);}
 
+.tour-nav{
+    flex:0 0 auto;margin-left:8px;display:inline-flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#fff;
+    cursor:pointer;text-decoration:none;font-size:15px;line-height:1;color:var(--ink);
+  }
+  .tour-nav:hover{border-color:var(--accent);background:var(--bg);}
+  .tour-nav.disabled{opacity:0.3;pointer-events:none;}
+
   /* ---- Tagestour-Modal ---- */
   #tagestour-overlay, #tage-overlay, #lager-overlay, #schieber-overlay, #grenzwerte-overlay, #avisierung-overlay, #verwaltung-overlay, #import-overlay, #planung-overlay{
     display:none;position:fixed;inset:0;background:rgba(20,30,26,0.45);z-index:100;
@@ -1407,6 +1415,33 @@ async function ladeRoute(datum, fahrer){
   }
 }
 
+// Koordinaten aus dem Stammdatenformat "N 47.1234 E 9.5678" lesen
+function koordPaar(roh){
+  if(!roh) return null;
+  const s = String(roh).trim();
+  // Format "N47.123° E9.456°" – auch mit O statt E (Ost)
+  const m = s.match(/([NS])\s*([\d.]+)\D*([EWO])\s*([\d.]+)/i);
+  if(m){
+    let lat = parseFloat(m[2]); let lon = parseFloat(m[4]);
+    if(/S/i.test(m[1])) lat = -lat;
+    if(/W/i.test(m[3])) lon = -lon;
+    if(!isNaN(lat) && !isNaN(lon)) return {lat, lon};
+  }
+  // Format "46.29283 7.943853" oder "46.29283, 7.943853"
+  const p = s.match(/^(-?\d{1,3}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)$/);
+  if(p){
+    const lat = parseFloat(p[1]); const lon = parseFloat(p[2]);
+    if(!isNaN(lat) && !isNaN(lon)) return {lat, lon};
+  }
+  return null;
+}
+
+function navLink(roh){
+  const p = koordPaar(roh);
+  if(!p) return null;
+  return `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=driving`;
+}
+
 async function openTagestour(datum, fahrer){
   const overlay = $('#tagestour-overlay');
   $('#tagestour-title').textContent = 'Tagestour · ' + datum + (fahrer ? ' · ' + fahrer : '');
@@ -1466,6 +1501,9 @@ async function openTagestour(datum, fahrer){
           ${t.fahrer ? `<span class="tour-fahrer ${t.fahrer === 'Ralph' ? 'ralph' : 'kathrin'}">${escapeHtml(t.fahrer)}</span>` : ''}
           ${istNaechster ? '<span class="tour-badge">Nächster</span>' : ''}
           ${isSelf && !istNaechster ? '<span class="tour-badge">Aktuell</span>' : ''}
+          ${navLink(t.koordinaten)
+            ? `<a class="tour-nav" href="${navLink(t.koordinaten)}" target="_blank" rel="noopener" title="In Google Maps navigieren" onclick="event.stopPropagation()">➤</a>`
+            : '<span class="tour-nav disabled" title="Keine Koordinaten hinterlegt">➤</span>'}
         </div>
         ${notizenHtml}
       `;
@@ -1475,12 +1513,8 @@ async function openTagestour(datum, fahrer){
     const kartenContainer = document.getElementById('tour-karte-container');
     if(kartenContainer){
       const tourKoords = liste.filter(t => !t.storniert && t.koordinaten).map(t => {
-        const m = t.koordinaten.match(/([NS])\s*([\d.]+)\D*([EW])\s*([\d.]+)/i);
-        if(!m) return null;
-        let lat = parseFloat(m[2]); let lon = parseFloat(m[4]);
-        if(/S/i.test(m[1])) lat = -lat;
-        if(/W/i.test(m[3])) lon = -lon;
-        return {lat, lon, name: t.kdnrName};
+        const p = koordPaar(t.koordinaten);
+        return p ? {lat: p.lat, lon: p.lon, name: t.kdnrName} : null;
       }).filter(Boolean);
 
       if(tourKoords.length >= 2){
